@@ -1,6 +1,7 @@
 CC=arm-apple-darwin-cc
 LD=$(CC)
-LDFLAGS=-lobjc -framework CoreFoundation -framework Foundation -framework UIKit -framework LayerKit
+LDFLAGS=-lobjc -framework CoreFoundation -framework Foundation -framework UIKit -framework LayerKit \
+	-framework CoreGraphics -framework GraphicsServices
 
 all:	iPhonePuzzleLeague install
 
@@ -10,10 +11,10 @@ iPhonePuzzleLeague:	main.o App.o
 %.o:	%.m
 		$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
 
-install: 
+install: iPhonePuzzleLeague
 		cp iPhonePuzzleLeague iPPL.app
 		
-upload:
+upload: install
 		echo -e "-mkdir /Applications/iPPL.app\n-put ./iPPL.app/* /Applications/iPPL.app/" |sftp root@192.168.1.102 -b-
 
 clean:

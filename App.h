@@ -2,6 +2,8 @@
 #import <UIKit/UIKit.h>
 #import <UIKit/UIApplication.h>
 
-@interface iPhonePuzzleLeague : UIApplication {}
+@interface iPhonePuzzleLeague : UIApplication
+{
+}
 
 @end
