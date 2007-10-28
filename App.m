@@ -1,37 +1,7 @@
-#import <CoreFoundation/CoreFoundation.h>
-#import <Foundation/Foundation.h>
-#import <UIKit/UIHardware.h>
+#import <UIKit/UIKit.h>
+#import <GraphicsServices/GraphicsServices.h>
 
 #import "App.h"
-
-#import <UIKit/UIView-Rendering.h>
-#import <LayerKit/LKLayer.h>
-
-#ifndef GRAPHICSSERVICES_H
-#define GRAPHICSSERVICES_H
-
-#import <UIKit/UIKit.h>
-
-struct __GSEvent;
-typedef struct __GSEvent GSEvent;
-typedef GSEvent *GSEventRef;
-
-struct CGPoint;
-struct CGRect;
-typedef struct CGPoint CGPoint;
-typedef struct CGRect CGRect;
-
-int GSEventIsChordingHandEvent(GSEvent *ev);
-int GSEventGetClickCount(GSEvent *ev);
-CGRect GSEventGetLocationInWindow(GSEvent *ev);
-float GSEventGetDeltaX(GSEvent *ev);
-float GSEventGetDeltaY(GSEvent *ev);
-CGRect  GSEventGetInnerMostPathPosition(GSEvent *ev);
-CGRect GSEventGetOuterMostPathPosition(GSEvent *ev);
-
-void GSEventVibrateForDuration(float secs);
-
-#endif
 
 @interface DragView : UIView
 {
@@ -50,9 +20,9 @@ void GSEventVibrateForDuration(float secs);
 
 - (void)updatePos:(GSEvent*)event
 {
-    CGRect location = GSEventGetLocationInWindow(event);
-	[(UITextLabel*)_element setText:[NSString stringWithFormat:@"drag: %f %f", location.origin.x, location.origin.y]];
-	[_element setOrigin:location.origin];
+    CGPoint location = GSEventGetLocationInWindow(event);
+	[(UITextLabel*)_element setText:[NSString stringWithFormat:@"drag: %f %f", location.x, location.y]];
+	[_element setOrigin:location];
 	[_element setNeedsDisplay];
 }
 
@@ -89,9 +59,44 @@ void GSEventVibrateForDuration(float secs);
 	//Set up the main view (for the window).
 	mainViewRect = windowRect;
 	mainViewRect.origin.x = 0.0f;
-	mainViewRect.origin.y = 0.0f;
+	mainViewRect.origin.y = -20.0f;	//accounting for status bar until I can figure out how to make it draw on top
 	mainView = [[DragView alloc] initWithFrame: mainViewRect];
     [window setContentView: mainView];
+
+	// Create background view
+	UIImageView* arena = [[[UIImageView alloc] initWithFrame:CGRectMake(0.0f,0.0f,320.0f,480.0f)] autorelease];
+	[arena setImage:[[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"arena" ofType:@"png"]] retain]];
+	[mainView addSubview: arena];
+
+	// Create character view
+	UIImageView* character = [[[UIImageView alloc] initWithFrame:CGRectMake(0.0f,0.0f,320.0f,480.0f)] autorelease];
+	[character setImage:[[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"character" ofType:@"png"]] retain]];
+	[mainView addSubview: character];
+
+	// Create backgrounds
+	float backColor[4] = {0,0,0,0.5};
+	CGColorRef backgroundColor = CGColorCreate(CGColorSpaceCreateDeviceRGB(), backColor);
+
+	UIView* mainBack = [[[UIView alloc] initWithFrame:CGRectMake(16.0f,77.0f,192.0f,384.0f)] autorelease];
+	[mainBack setBackgroundColor: backgroundColor];
+	[mainView addSubview: mainBack];
+
+	CGRect rightFrame = CGRectMake(223.0f, 132.0f, 64.0f, 128.0f);
+	UIView* enemyBack = [[[UIView alloc] initWithFrame:rightFrame] autorelease];
+	[enemyBack setBackgroundColor: backgroundColor];
+	[mainView addSubview: enemyBack];
+
+	rightFrame.origin.y = 276.0f;
+	rightFrame.size.height = 64.0f;
+	UIView* timeBack = [[[UIView alloc] initWithFrame:rightFrame] autorelease];
+	[timeBack setBackgroundColor: backgroundColor];
+	[mainView addSubview: timeBack];
+
+	rightFrame.origin.y = 356.0f;
+	rightFrame.size.height = 96.0f;
+	UIView* livesBack = [[[UIView alloc] initWithFrame:rightFrame] autorelease];
+	[livesBack setBackgroundColor: backgroundColor];
+	[mainView addSubview: livesBack];
 
 	//Set up the labels.
 	CGRect labelFrame = CGRectMake(5.0f, 100.0f, mainViewRect.size.width - 5.0f, 20.0f);
@@ -104,6 +109,18 @@ void GSEventVibrateForDuration(float secs);
 	[testLabel setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), background)];
 
 	[(DragView*)mainView setElement: testLabel];
+}
+
+- (void)applicationWillSuspend
+{
+	// Update default background for startup...
+	CGImageRef defaultPNG = [self createApplicationDefaultPNG];
+	NSString *pathToDefault = [NSString stringWithFormat:@"%@/Default.png", [[NSBundle mainBundle] bundlePath]];
+	NSURL *urlToDefault = [NSURL fileURLWithPath:pathToDefault];
+	CGImageDestinationRef dest = CGImageDestinationCreateWithURL((CFURLRef)urlToDefault, CFSTR("public.png")/*kUTTypePNG*/, 1, NULL);
+	CGImageDestinationAddImage(dest, defaultPNG, NULL);
+	CGImageDestinationFinalize(dest);
+	CFRelease(defaultPNG);
 }
 
 @end
