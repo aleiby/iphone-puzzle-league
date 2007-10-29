@@ -3,25 +3,12 @@
 
 #import "App.h"
 
-@interface DragView : UIView
-{
-	UIView* _element;
-}
-- (void)setElement:(UIView*)element;
-- (void)updatePos:(GSEvent*)event;
-@end
+//- (id)initWithFrame:(CGRect)frame
 
-@implementation DragView
-
-- (void)setElement:(UIView*)element
-{
-	_element = element;
-}
-
+/*
 - (void)updatePos:(GSEvent*)event
 {
-    CGPoint location = GSEventGetLocationInWindow(event);
-	[(UITextLabel*)_element setText:[NSString stringWithFormat:@"drag: %f %f", location.x, location.y]];
+	CGPoint location = GSEventGetLocationInWindow(event);
 	[_element setOrigin:location];
 	[_element setNeedsDisplay];
 }
@@ -35,9 +22,7 @@
 {
 	[self updatePos:event];
 }
-
-@end
-
+*/
 
 @implementation iPhonePuzzleLeague
 
@@ -60,18 +45,31 @@
 	mainViewRect = windowRect;
 	mainViewRect.origin.x = 0.0f;
 	mainViewRect.origin.y = -20.0f;	//accounting for status bar until I can figure out how to make it draw on top
-	mainView = [[DragView alloc] initWithFrame: mainViewRect];
+	mainView = [[UIView alloc] initWithFrame: mainViewRect];
     [window setContentView: mainView];
 
 	// Create background view
-	UIImageView* arena = [[[UIImageView alloc] initWithFrame:CGRectMake(0.0f,0.0f,320.0f,480.0f)] autorelease];
+	arena = [[[UIImageView alloc] initWithFrame:CGRectMake(0.0f,0.0f,320.0f,480.0f)] autorelease];
 	[arena setImage:[[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"arena" ofType:@"png"]] retain]];
 	[mainView addSubview: arena];
 
+	[arena setAlpha: 0.0f];
+	[UIView beginAnimations:nil];
+	[UIView setAnimationDuration:3.0];
+	[arena setAlpha: 1.0f];
+	[UIView endAnimations];
+
 	// Create character view
-	UIImageView* character = [[[UIImageView alloc] initWithFrame:CGRectMake(0.0f,0.0f,320.0f,480.0f)] autorelease];
+	UIImageView* character = [[[UIImageView alloc] initWithFrame:CGRectMake(320.0f,0.0f,320.0f,480.0f)] autorelease];
 	[character setImage:[[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"character" ofType:@"png"]] retain]];
 	[mainView addSubview: character];
+
+	// Slide in from right.
+	[UIView beginAnimations:nil];
+	[UIView setAnimationDelay:0.5];
+	[UIView setAnimationDuration:2.0];
+	[character setFrame:CGRectMake(48,0,320,480)];
+	[UIView endAnimations];
 
 	// Create backgrounds
 	float backColor[4] = {0,0,0,0.5};
@@ -98,21 +96,22 @@
 	[livesBack setBackgroundColor: backgroundColor];
 	[mainView addSubview: livesBack];
 
-	//Set up the labels.
-	CGRect labelFrame = CGRectMake(5.0f, 100.0f, mainViewRect.size.width - 5.0f, 20.0f);
-	UITextLabel* testLabel = [[UITextLabel alloc] initWithFrame: labelFrame];
-	[mainView addSubview: testLabel];
+    timer = [NSTimer
+        scheduledTimerWithTimeInterval:0.033
+        target: self
+        selector: @selector(update)
+        userInfo: nil
+        repeats: YES
+    ];
+}
 
-	[testLabel setText: @"iPhonePuzzleLeague"];
-
-	float background[4] = {1,0,0,0.5};
-	[testLabel setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), background)];
-
-	[(DragView*)mainView setElement: testLabel];
+- (void) update
+{
 }
 
 - (void)applicationWillSuspend
 {
+#if 0
 	// Update default background for startup...
 	CGImageRef defaultPNG = [self createApplicationDefaultPNG];
 	NSString *pathToDefault = [NSString stringWithFormat:@"%@/Default.png", [[NSBundle mainBundle] bundlePath]];
@@ -121,6 +120,8 @@
 	CGImageDestinationAddImage(dest, defaultPNG, NULL);
 	CGImageDestinationFinalize(dest);
 	CFRelease(defaultPNG);
+#endif
+	[timer invalidate];
 }
 
 @end
