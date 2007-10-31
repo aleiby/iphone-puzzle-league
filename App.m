@@ -3,26 +3,106 @@
 
 #import "App.h"
 
-//- (id)initWithFrame:(CGRect)frame
-
-/*
-- (void)updatePos:(GSEvent*)event
+@interface iBlock : UIImageView
 {
-	CGPoint location = GSEventGetLocationInWindow(event);
-	[_element setOrigin:location];
-	[_element setNeedsDisplay];
 }
 
-- (void)mouseDragged:(GSEvent*)event
+- (void)shiftUp;
+
+@end
+
+@interface iBoard : UIView
 {
-	[self updatePos:event];
+	UIView* selected;
+	NSTimer* timer;
+	int counter;
+}
+
+- (void)setSelected:(id)block;
+
+@end
+
+@implementation iBlock
+
+- (void)shiftUp
+{
+	CGPoint location = [self origin];
+	location.y -= 32.0f;
+	[self setOrigin:location];
+	[self setNeedsDisplay];
 }
 
 - (void)mouseDown:(GSEvent*)event
 {
-	[self updatePos:event];
+	[(iBoard*)[self superview] setSelected:self];
 }
-*/
+
+- (void)mouseUp:(GSEvent*)event
+{
+	[(iBoard*)[self superview] setSelected:nil];
+}
+
+@end
+
+@implementation iBoard
+
+- (id)initWithFrame:(CGRect)frame
+{
+	self = [super initWithFrame:frame];
+    timer = [NSTimer
+        scheduledTimerWithTimeInterval:0.5
+        target: self
+        selector: @selector(update)
+        userInfo: nil
+        repeats: YES
+    ];
+
+	counter = 0;
+	return self;
+}
+
+- (void) update
+{
+	CGPoint location = [self origin];
+
+	if (++counter == 32)
+	{
+		counter = 0;
+		location.y += 32.0f;
+
+		NSArray* blocks = [self subviews];
+		int count = [blocks count];
+		for (int i=0; i<count; i++)
+			[[blocks objectAtIndex:i] shiftUp];
+	}
+	else
+	{
+		location.y -= 1.0f;
+	}
+
+	[self setOrigin:location];
+	[self setNeedsDisplay];
+}
+
+- (void)setSelected:(id)block
+{
+	selected = block;
+}
+
+- (void)mouseDragged:(GSEvent*)event
+{
+	if (selected == nil)
+		return;
+
+	CGPoint location = GSEventGetLocationInWindow(event);
+	CGPoint relative = [self origin];
+	location.x -= relative.x;
+	location.y -= relative.y;
+	[selected setOrigin:location];
+	[selected setNeedsDisplay];
+}
+
+@end
 
 @implementation iPhonePuzzleLeague
 
@@ -49,7 +129,7 @@
     [window setContentView: mainView];
 
 	// Create background view
-	arena = [[[UIImageView alloc] initWithFrame:CGRectMake(0.0f,0.0f,320.0f,480.0f)] autorelease];
+	UIImageView* arena = [[[UIImageView alloc] initWithFrame:CGRectMake(0.0f,0.0f,320.0f,480.0f)] autorelease];
 	[arena setImage:[[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"arena" ofType:@"png"]] retain]];
 	[mainView addSubview: arena];
 
@@ -96,17 +176,28 @@
 	[livesBack setBackgroundColor: backgroundColor];
 	[mainView addSubview: livesBack];
 
-    timer = [NSTimer
-        scheduledTimerWithTimeInterval:0.033
-        target: self
-        selector: @selector(update)
-        userInfo: nil
-        repeats: YES
-    ];
-}
+	// Create a playing board.
+	CGRect playingRect = CGRectMake(16.0f,77.0f,192.0f,384.0f);
+	UIView* playingBoard = [[[iBoard alloc] initWithFrame:playingRect] autorelease];
+	[mainView addSubview: playingBoard];
 
-- (void) update
-{
+	// Add some blocks...
+	CGRect blockRect = CGRectMake(0.0f, playingRect.size.height - 32.0f, 32.0f, 32.0f);
+	id blocks[6] = {@"red",@"green",@"blue",@"pink",@"special",@"yellow"};
+	int n = 0;
+	for (int j=0; j<4; j++)
+	{
+		for (int i=0; i<6; i++)
+		{
+			iBlock* block = [[[iBlock alloc] initWithFrame:blockRect] autorelease];
+			[block setImage:[[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:blocks[n] ofType:@"png"]] retain]];
+			[playingBoard addSubview:block];
+			blockRect.origin.x += 32.0f;
+			n = (n + 1) % 6;
+		}
+		blockRect.origin.x = 0.0f;
+		blockRect.origin.y += 32.0f;
+	}
 }
 
 - (void)applicationWillSuspend
@@ -121,7 +212,6 @@
 	CGImageDestinationFinalize(dest);
 	CFRelease(defaultPNG);
 #endif
-	[timer invalidate];
 }
 
 @end
