@@ -3,8 +3,6 @@
 
 @interface iPhonePuzzleLeague : UIApplication
 {
-	UIImageView* arena;
-	NSTimer* timer;
 }
 
 @end

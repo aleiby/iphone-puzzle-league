@@ -1,4 +1,5 @@
 CC=arm-apple-darwin-cc
+CFLAGS=-g -O2 -Wall -std=gnu99
 LD=$(CC)
 LDFLAGS=-lobjc -framework CoreFoundation -framework Foundation -framework UIKit -framework LayerKit \
 	-framework CoreGraphics -framework GraphicsServices
