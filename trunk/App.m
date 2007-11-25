@@ -2,11 +2,16 @@
 #import <GraphicsServices/GraphicsServices.h>
 
 #import "App.h"
+#import "Core.h"
 
 @interface iBlock : UIImageView
 {
+	int row, col;
 }
 
+- (int)getRow;
+- (int)getCol;
+- (void)setRow:(int)row andColumn:(int)col;
 - (void)shiftUp;
 
 @end
@@ -16,6 +21,7 @@
 	UIView* selected;
 	NSTimer* timer;
 	int counter;
+	UIImage* blockImages[eBlockType_Max];
 }
 
 - (void)setSelected:(id)block;
@@ -23,6 +29,22 @@
 @end
 
 @implementation iBlock
+
+- (int)getRow
+{
+	return row;
+}
+
+- (int)getCol
+{
+	return col;
+}
+
+- (void)setRow:(int)_row andColumn:(int)_col
+{
+	row = _row;
+	col = _col;
+}
 
 - (void)shiftUp
 {
@@ -50,12 +72,17 @@
 {
 	self = [super initWithFrame:frame];
     timer = [NSTimer
-        scheduledTimerWithTimeInterval:0.5
+        scheduledTimerWithTimeInterval:0.1
         target: self
         selector: @selector(update)
         userInfo: nil
         repeats: YES
     ];
+
+	id imageNames[eBlockType_Max] = {@"",@"red",@"green",@"blue",@"yellow",@"pink",@"special"};
+	blockImages[0] = nil;
+	for (int i=1; i<eBlockType_Max; i++)
+		blockImages[i] = [[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:imageNames[i] ofType:@"png"]] retain];
 
 	counter = 0;
 	return self;
@@ -63,6 +90,20 @@
 
 - (void) update
 {
+	PPL_Update();
+
+	//!!ARL: Maybe add a callback when the type changes instead?
+	NSArray* blocks = [self subviews];
+	int count = [blocks count];
+	for (int i=0; i<count; i++)
+	{
+		iBlock* block = (iBlock*)[blocks objectAtIndex:i];
+		int type = PPL_GetBlockType([block getRow], [block getCol]);
+		UIImage* image = blockImages[type];
+		[block setImage:image];
+	}
+
+/*
 	CGPoint location = [self origin];
 
 	if (++counter == 32)
@@ -81,6 +122,7 @@
 	}
 
 	[self setOrigin:location];
+*/
 	[self setNeedsDisplay];
 }
 
@@ -113,6 +155,8 @@
 
 	CGRect windowRect;
 	CGRect mainViewRect;
+
+	PPL_Init();
 
 	// Set up a window.
 	windowRect = [UIHardware fullScreenApplicationContentRect];
@@ -182,18 +226,15 @@
 	[mainView addSubview: playingBoard];
 
 	// Add some blocks...
-	CGRect blockRect = CGRectMake(0.0f, playingRect.size.height - 32.0f, 32.0f, 32.0f);
-	id blocks[6] = {@"red",@"green",@"blue",@"pink",@"special",@"yellow"};
-	int n = 0;
-	for (int j=0; j<4; j++)
+	CGRect blockRect = CGRectMake(0.0f, 0.0f, 32.0f, 32.0f);
+	for (int row=0; row<BOARD_ROWS; row++)
 	{
-		for (int i=0; i<6; i++)
+		for (int col=0; col<BOARD_COLS; col++)
 		{
 			iBlock* block = [[[iBlock alloc] initWithFrame:blockRect] autorelease];
-			[block setImage:[[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:blocks[n] ofType:@"png"]] retain]];
+			[block setRow:row andColumn:col];
 			[playingBoard addSubview:block];
 			blockRect.origin.x += 32.0f;
-			n = (n + 1) % 6;
 		}
 		blockRect.origin.x = 0.0f;
 		blockRect.origin.y += 32.0f;
