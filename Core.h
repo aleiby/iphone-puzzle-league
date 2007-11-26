@@ -14,7 +14,9 @@ enum EBlockType
 
 enum EBlockFlag
 {
-	Locked = (1 << 8),
+	eBlockFlag_TypeMask		= (7),
+	eBlockFlag_MatchMask	= (15 << 3),
+	eBlockFlag_Locked		= (1 << 8),
 };
 
 #define BOARD_COLS			6
@@ -28,3 +30,5 @@ void	PPL_Init			(void);
 void	PPL_Update			(void);
 void	PPL_Feed			(int ticks);
 int		PPL_GetBlockType	(int row, int column);
+void	PPL_MoveRight		(int row, int column);
+void	PPL_MoveLeft		(int row, int column);

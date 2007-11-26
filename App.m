@@ -9,33 +9,34 @@
 	int row, col;
 }
 
-- (int)getRow;
-- (int)getCol;
+- (int)row;
+- (int)col;
 - (void)setRow:(int)row andColumn:(int)col;
-- (void)shiftUp;
 
 @end
 
 @interface iBoard : UIView
 {
-	UIView* selected;
+	iBlock* selected;
+	CGPoint sel_loc;
 	NSTimer* timer;
 	int counter;
 	UIImage* blockImages[eBlockType_Max];
 }
 
-- (void)setSelected:(id)block;
+- (void)setSelected:(id)block withLocation:(CGPoint)location;
+- (void)clearSelected;
 
 @end
 
 @implementation iBlock
 
-- (int)getRow
+- (int)row
 {
 	return row;
 }
 
-- (int)getCol
+- (int)col
 {
 	return col;
 }
@@ -46,22 +47,15 @@
 	col = _col;
 }
 
-- (void)shiftUp
-{
-	CGPoint location = [self origin];
-	location.y -= 32.0f;
-	[self setOrigin:location];
-	[self setNeedsDisplay];
-}
-
 - (void)mouseDown:(GSEvent*)event
 {
-	[(iBoard*)[self superview] setSelected:self];
+	CGPoint location = GSEventGetLocationInWindow(event);
+	[(iBoard*)[self superview] setSelected:self withLocation:location];
 }
 
 - (void)mouseUp:(GSEvent*)event
 {
-	[(iBoard*)[self superview] setSelected:nil];
+	[(iBoard*)[self superview] clearSelected];
 }
 
 @end
@@ -98,37 +92,23 @@
 	for (int i=0; i<count; i++)
 	{
 		iBlock* block = (iBlock*)[blocks objectAtIndex:i];
-		int type = PPL_GetBlockType([block getRow], [block getCol]);
+		int type = PPL_GetBlockType([block row], [block col]);
 		UIImage* image = blockImages[type];
 		[block setImage:image];
 	}
 
-/*
-	CGPoint location = [self origin];
-
-	if (++counter == 32)
-	{
-		counter = 0;
-		location.y += 32.0f;
-
-		NSArray* blocks = [self subviews];
-		int count = [blocks count];
-		for (int i=0; i<count; i++)
-			[[blocks objectAtIndex:i] shiftUp];
-	}
-	else
-	{
-		location.y -= 1.0f;
-	}
-
-	[self setOrigin:location];
-*/
 	[self setNeedsDisplay];
 }
 
-- (void)setSelected:(id)block
+- (void)setSelected:(id)block withLocation:(CGPoint)location
 {
 	selected = block;
+	sel_loc = location;
+}
+
+- (void)clearSelected
+{
+	selected = nil;
 }
 
 - (void)mouseDragged:(GSEvent*)event
@@ -137,11 +117,22 @@
 		return;
 
 	CGPoint location = GSEventGetLocationInWindow(event);
-	CGPoint relative = [self origin];
-	location.x -= relative.x;
-	location.y -= relative.y;
-	[selected setOrigin:location];
-	[selected setNeedsDisplay];
+	float diff = location.x - sel_loc.x;
+	if (diff > 32.0f)
+	{
+		PPL_MoveRight([selected row], [selected col]);
+		[selected setNeedsDisplay];
+		selected = nil;
+		return;
+	}
+
+	if (diff < -32.0f)
+	{
+		PPL_MoveLeft([selected row], [selected col]);
+		[selected setNeedsDisplay];
+		selected = nil;
+		return;
+	}
 }
 
 @end
