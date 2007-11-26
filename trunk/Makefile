@@ -20,3 +20,4 @@ upload: install
 
 clean:
 		rm -f *.o iPhonePuzzleLeague
+		rm -f *~ iPhonePuzzleLeague
