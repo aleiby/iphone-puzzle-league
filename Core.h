@@ -12,11 +12,14 @@ enum EBlockType
 	eBlockType_Max
 };
 
+#define MATCH_OFFSET		3
+#define FALLING_OFFSET		8
+
 enum EBlockFlag
 {
 	eBlockFlag_TypeMask		= (7),
-	eBlockFlag_MatchMask	= (15 << 3),
-	eBlockFlag_Locked		= (1 << 8),
+	eBlockFlag_MatchMask	= (15 << MATCH_OFFSET),
+	eBlockFlag_FallingMask	= (1 << FALLING_OFFSET),
 };
 
 #define BOARD_COLS			6
