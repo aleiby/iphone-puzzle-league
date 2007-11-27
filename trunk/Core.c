@@ -33,22 +33,53 @@ void PPL_Init()
 			blocks[row][col] = abs(quickrand()) % eBlockType_Max;
 }
 
+int DecayBlock(int* block, int mask, int inc)
+{
+	int count = ((*block) & mask);
+	if (count)
+	{
+		count -= inc;
+		if (count == 0)
+			return 1;
+
+		(*block) = count | ((*block) & ~mask);
+	}
+	return 0;
+}
+
 void PPL_Update(void)
 {
-	// decay matched blocks.
+	// decay matched/falling blocks.
 	for (int row = 0; row < BOARD_ROWS; row++)
 		for (int col = 0; col < BOARD_COLS; col++)
 		{
-			int count = (blocks[row][col] & eBlockFlag_MatchMask);
-			if (count)
+			int* block = &(blocks[row][col]);
+			int type = (*block) & eBlockFlag_TypeMask;
+			if (type == eBlockType_Empty)
+				continue;
+			if (DecayBlock(block, eBlockFlag_MatchMask, (1 << MATCH_OFFSET)))
+				(*block) = eBlockType_Empty;
+			else if (DecayBlock(block, eBlockFlag_FallingMask, (1 << FALLING_OFFSET)))
 			{
-				count -= (1 << 3);
-				if (count == 0)
-				{
-					blocks[row][col] = eBlockType_Empty;
-					continue;
-				}
-				blocks[row][col] = count | (blocks[row][col] & ~eBlockFlag_MatchMask);
+				(*block) = eBlockType_Empty;
+				blocks[row+1][col] = type;
+			}
+		}
+
+	// check for falling.
+	for (int row = 0; row < BOARD_ROWS-1; row++)
+		for (int col = 0; col < BOARD_COLS; col++)
+		{
+			int type = blocks[row][col];
+			if (type == eBlockType_Empty)
+				continue;
+			if (type & ~eBlockFlag_TypeMask)
+				continue;
+
+			if (blocks[row+1][col] == eBlockType_Empty)
+			{
+				blocks[row][col] |= eBlockFlag_FallingMask;
+				blocks[row+1][col] |= eBlockFlag_FallingMask;	// maybe use separate locked flag instead to avoid filtering Emptys above?
 			}
 		}
 
@@ -63,13 +94,18 @@ void PPL_Update(void)
 				continue;
 			type = (type & eBlockFlag_TypeMask);
 
+			//!! read from old, write to new instead.
+			int type_matched = (type | eBlockFlag_MatchMask);
+
 			// horizontal...
 			{
 				int low = max(col-2, 0);
 				int high = min(col+3, BOARD_COLS);
 				int matches = 0;
 				for (int i = low; i < high; i++)
-					if ((blocks[row][i] & eBlockFlag_TypeMask) == type)
+				{
+					int block = blocks[row][i];
+					if (block == type || block == type_matched)
 					{
 						if (++matches == 3)
 						{
@@ -78,6 +114,7 @@ void PPL_Update(void)
 						}
 					}
 					else matches = 0;
+				}
 			}
 
 			// vertical...
@@ -86,7 +123,9 @@ void PPL_Update(void)
 				int high = min(row+3, BOARD_ROWS);
 				int matches = 0;
 				for (int i = low; i < high; i++)
-					if ((blocks[i][col] & eBlockFlag_TypeMask) == type)
+				{
+					int block = blocks[i][col];
+					if (block == type || block == type_matched)
 					{
 						if (++matches == 3)
 						{
@@ -95,20 +134,11 @@ void PPL_Update(void)
 						}
 					}
 					else matches = 0;
+				}
 			}
 
 			NEXT_BLOCK:;
 		}
-
-	// propagate falling blocks.
-	for (int row = 1; row < BOARD_ROWS; row++)
-		for (int col = 0; col < BOARD_COLS; col++)
-			if (blocks[row][col] == eBlockType_Empty)
-			{
-				//!!ARL: Read from old, write to new.
-				blocks[row][col] = blocks[row-1][col];
-				blocks[row-1][col] = eBlockType_Empty;
-			}
 
 	ticks++;
 }
@@ -120,7 +150,7 @@ void PPL_Feed(int ticks)
 int PPL_GetBlockType(int row, int col)
 {
 	// Blink when matched.
-	if (blocks[row][col] & (1 << 3))
+	if (blocks[row][col] & (1 << MATCH_OFFSET))
 		return eBlockType_Empty;
 
 	return (blocks[row][col] & eBlockFlag_TypeMask);
@@ -128,22 +158,28 @@ int PPL_GetBlockType(int row, int col)
 
 void PPL_MoveRight(int row, int col)
 {
+	if (col == BOARD_COLS-1)
+		return;
 	int block = blocks[row][col];
 	if (block & ~eBlockFlag_TypeMask)
 		return;
-	if (col == BOARD_COLS-1)
+	int other = blocks[row][col+1];
+	if (other & ~eBlockFlag_TypeMask)
 		return;
-	blocks[row][col] = blocks[row][col+1];
+	blocks[row][col] = other;
 	blocks[row][col+1] = block;
 }
 
 void PPL_MoveLeft(int row, int col)
 {
+	if (col == 0)
+		return;
 	int block = blocks[row][col];
 	if (block & ~eBlockFlag_TypeMask)
 		return;
-	if (col == 0)
+	int other = blocks[row][col-1];
+	if (other & ~eBlockFlag_TypeMask)
 		return;
-	blocks[row][col] = blocks[row][col-1];
+	blocks[row][col] = other;
 	blocks[row][col-1] = block;
 }
