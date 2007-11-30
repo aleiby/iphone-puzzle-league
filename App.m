@@ -4,58 +4,34 @@
 #import "App.h"
 #import "Core.h"
 
-@interface iBlock : UIImageView
+@interface iBoardBase : UIView
+@end
+
+@interface iBoardView : iBoardBase
 {
-	int row, col;
+	UIImage* blockImages[eBlockType_Max];
 }
 
-- (int)row;
-- (int)col;
-- (void)setRow:(int)row andColumn:(int)col;
+-(void)update;
+
+@end
+
+@interface iDebugView : iBoardBase
+{
+	UIImage* lockedImage;
+}
+
+-(void)update;
 
 @end
 
 @interface iBoard : UIView
 {
-	iBlock* selected;
-	CGPoint sel_loc;
+	CGPoint clicked;
 	NSTimer* timer;
-	int counter;
-	UIImage* blockImages[eBlockType_Max];
-}
 
-- (void)setSelected:(id)block withLocation:(CGPoint)location;
-- (void)clearSelected;
-
-@end
-
-@implementation iBlock
-
-- (int)row
-{
-	return row;
-}
-
-- (int)col
-{
-	return col;
-}
-
-- (void)setRow:(int)_row andColumn:(int)_col
-{
-	row = _row;
-	col = _col;
-}
-
-- (void)mouseDown:(GSEvent*)event
-{
-	CGPoint location = GSEventGetLocationInWindow(event);
-	[(iBoard*)[self superview] setSelected:self withLocation:location];
-}
-
-- (void)mouseUp:(GSEvent*)event
-{
-	[(iBoard*)[self superview] clearSelected];
+	iBoardView* boardView;
+	iDebugView* debugView;
 }
 
 @end
@@ -65,6 +41,16 @@
 - (id)initWithFrame:(CGRect)frame
 {
 	self = [super initWithFrame:frame];
+
+	frame.origin.x = 0.0f;
+	frame.origin.y = 0.0f;
+
+	boardView = [[[iBoardView alloc] initWithFrame:frame] autorelease];
+	[self addSubview: boardView];
+
+	debugView = [[[iDebugView alloc] initWithFrame:frame] autorelease];
+	[self addSubview: debugView];
+
     timer = [NSTimer
         scheduledTimerWithTimeInterval:0.1
         target: self
@@ -73,12 +59,6 @@
         repeats: YES
     ];
 
-	id imageNames[eBlockType_Max] = {@"",@"red",@"green",@"blue",@"yellow",@"pink",@"special"};
-	blockImages[0] = nil;
-	for (int i=1; i<eBlockType_Max; i++)
-		blockImages[i] = [[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:imageNames[i] ofType:@"png"]] retain];
-
-	counter = 0;
 	return self;
 }
 
@@ -86,53 +66,127 @@
 {
 	PPL_Update();
 
-	//!!ARL: Maybe add a callback when the type changes instead?
-	NSArray* blocks = [self subviews];
-	int count = [blocks count];
-	for (int i=0; i<count; i++)
-	{
-		iBlock* block = (iBlock*)[blocks objectAtIndex:i];
-		int type = PPL_GetBlockType([block row], [block col]);
-		UIImage* image = blockImages[type];
-		[block setImage:image];
-	}
-
-	[self setNeedsDisplay];
+	[boardView update];
+	[debugView update];
 }
 
-- (void)setSelected:(id)block withLocation:(CGPoint)location
+- (void)mouseDown:(GSEvent*)event
 {
-	selected = block;
-	sel_loc = location;
-}
-
-- (void)clearSelected
-{
-	selected = nil;
+	clicked = GSEventGetLocationInWindow(event);
 }
 
 - (void)mouseDragged:(GSEvent*)event
 {
-	if (selected == nil)
-		return;
-
 	CGPoint location = GSEventGetLocationInWindow(event);
-	float diff = location.x - sel_loc.x;
+	float diff = location.x - clicked.x;
 	if (diff > 32.0f)
 	{
-		PPL_MoveRight([selected row], [selected col]);
-		[selected setNeedsDisplay];
-		selected = nil;
+		CGPoint origin = [self origin];
+		CGRect frame = [self frame];
+		int row = (clicked.y - origin.y) / frame.size.height * BOARD_ROWS;
+		int col = (clicked.x - origin.x) / frame.size.width * BOARD_COLS;
+		PPL_MoveRight(row,col);
+		clicked = location;
 		return;
 	}
 
 	if (diff < -32.0f)
 	{
-		PPL_MoveLeft([selected row], [selected col]);
-		[selected setNeedsDisplay];
-		selected = nil;
+		CGPoint origin = [self origin];
+		CGRect frame = [self frame];
+		int row = (clicked.y - origin.y) / frame.size.height * BOARD_ROWS;
+		int col = (clicked.x - origin.x) / frame.size.width * BOARD_COLS;
+		PPL_MoveLeft(row,col);
+		clicked = location;
 		return;
 	}
+}
+
+@end
+
+@implementation iBoardBase
+
+- (id)initWithFrame:(CGRect)frame
+{
+	self = [super initWithFrame:frame];
+
+	CGRect blockRect = CGRectMake(0.0f, 0.0f, 32.0f, 32.0f);
+	for (int row=0; row<BOARD_ROWS; row++)
+	{
+		for (int col=0; col<BOARD_COLS; col++)
+		{
+			UIImageView* block = [[[UIImageView alloc] initWithFrame:blockRect] autorelease];
+			[self addSubview:block];
+			blockRect.origin.x += 32.0f;
+		}
+		blockRect.origin.x = 0.0f;
+		blockRect.origin.y += 32.0f;
+	}
+
+	return self;
+}
+
+@end
+
+@implementation iBoardView
+
+- (id)initWithFrame:(CGRect)frame
+{
+	self = [super initWithFrame:frame];
+
+	id imageNames[eBlockType_Max] = {@"",@"red",@"green",@"blue",@"yellow",@"pink",@"special"};
+	blockImages[0] = nil;
+	for (int i=1; i<eBlockType_Max; i++)
+		blockImages[i] = [[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:imageNames[i] ofType:@"png"]] retain];
+
+	return self;
+}
+
+- (void) update
+{
+	//!!ARL: Maybe add a callback when the type changes instead?
+	NSArray* blocks = [self subviews];
+	for (int i=0, row=0; row<BOARD_ROWS; row++)
+	{
+		for (int col=0; col<BOARD_COLS; col++)
+		{
+			UIImageView* block = (UIImageView*)[blocks objectAtIndex:i++];
+			int type = PPL_GetBlockType(row,col);
+			UIImage* image = blockImages[type];
+			[block setImage:image];
+		}
+	}
+
+	[self setNeedsDisplay];
+}
+
+@end
+
+@implementation iDebugView
+
+- (id)initWithFrame:(CGRect)frame
+{
+	self = [super initWithFrame:frame];
+
+	lockedImage = [[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"locked" ofType:@"png"]] retain];
+
+	return self;
+}
+
+- (void) update
+{
+	NSArray* blocks = [self subviews];
+	for (int i=0, row=0; row<BOARD_ROWS; row++)
+	{
+		for (int col=0; col<BOARD_COLS; col++)
+		{
+			UIImageView* block = (UIImageView*)[blocks objectAtIndex:i++];
+			[block setImage:PPL_IsLocked(row,col) ?
+				lockedImage : nil];
+		}
+	}
+
+	[self setNeedsDisplay];
 }
 
 @end
@@ -213,23 +267,8 @@
 
 	// Create a playing board.
 	CGRect playingRect = CGRectMake(16.0f,77.0f,192.0f,384.0f);
-	UIView* playingBoard = [[[iBoard alloc] initWithFrame:playingRect] autorelease];
-	[mainView addSubview: playingBoard];
-
-	// Add some blocks...
-	CGRect blockRect = CGRectMake(0.0f, 0.0f, 32.0f, 32.0f);
-	for (int row=0; row<BOARD_ROWS; row++)
-	{
-		for (int col=0; col<BOARD_COLS; col++)
-		{
-			iBlock* block = [[[iBlock alloc] initWithFrame:blockRect] autorelease];
-			[block setRow:row andColumn:col];
-			[playingBoard addSubview:block];
-			blockRect.origin.x += 32.0f;
-		}
-		blockRect.origin.x = 0.0f;
-		blockRect.origin.y += 32.0f;
-	}
+	iBoard* board = [[[iBoard alloc] initWithFrame:playingRect] autorelease];
+	[mainView addSubview: board];
 }
 
 - (void)applicationWillSuspend
