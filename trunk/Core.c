@@ -156,6 +156,11 @@ int PPL_GetBlockType(int row, int col)
 	return (blocks[row][col] & eBlockFlag_TypeMask);
 }
 
+int PPL_IsLocked(int row, int col)
+{
+	return (blocks[row][col] & ~eBlockFlag_TypeMask);
+}
+
 void PPL_MoveRight(int row, int col)
 {
 	if (col == BOARD_COLS-1)
