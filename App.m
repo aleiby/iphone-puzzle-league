@@ -34,6 +34,33 @@
 	iDebugView* debugView;
 }
 
+-(void)play;
+-(void)step;
+
+@end
+
+@interface StepButton : UIView
+@end
+
+@implementation StepButton
+
+- (void)mouseDown:(GSEvent*)event
+{
+	[(iBoard*)[self superview] step];
+}
+
+@end
+
+@interface PlayButton : UIView
+@end
+
+@implementation PlayButton
+
+- (void)mouseDown:(GSEvent*)event
+{
+	[(iBoard*)[self superview] play];
+}
+
 @end
 
 @implementation iBoard
@@ -51,6 +78,24 @@
 	debugView = [[[iDebugView alloc] initWithFrame:frame] autorelease];
 	[self addSubview: debugView];
 
+	float red[4] = {1,0,0,0.5};
+	CGRect buttonRect = CGRectMake(0.0f, 0.0f, 64.0f, 48.0f);
+	UIView* stepButton = [[[StepButton alloc] initWithFrame:buttonRect] autorelease];
+	[stepButton setBackgroundColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), red)];
+	[self addSubview: stepButton];
+
+	float green[4] = {0,1,0,0.5};
+	buttonRect.origin.x = frame.size.width - buttonRect.size.width;
+	UIView* playButton = [[[PlayButton alloc] initWithFrame:buttonRect] autorelease];
+	[playButton setBackgroundColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), green)];
+	[self addSubview: playButton];
+
+	[self play];
+	return self;
+}
+
+- (void) play
+{
     timer = [NSTimer
         scheduledTimerWithTimeInterval:0.1
         target: self
@@ -58,8 +103,14 @@
         userInfo: nil
         repeats: YES
     ];
+}
 
-	return self;
+- (void) step
+{
+	[timer invalidate];
+	timer = nil;
+
+	[(id)self update];
 }
 
 - (void) update
