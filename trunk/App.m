@@ -133,6 +133,8 @@
 
 - (void) update
 {
+	int type = PPL_GetBlockType(selectedRow, selectedCol);
+	
 	if (selectedRow >= 0 && selectedCol >= 0 && desiredCol >=0)
 	{
 		if (desiredCol < selectedCol &&  PPL_MoveLeft(selectedRow, selectedCol))
@@ -144,6 +146,10 @@
 	}
 
 	PPL_Update();
+
+	// Release selection if type changes on us.
+	if (PPL_GetBlockType(selectedRow, selectedCol) != type)
+		[self reset];
 
 	[boardView update];
 	[debugView update];
@@ -183,6 +189,8 @@
 	CGPoint location = [self getRelativeLocation:event];
 	selectedCol = [self colGivenX:location.x];
 	selectedRow = [self rowGivenY:location.y];
+
+	desiredCol = selectedCol;
 
 	[selectedView setOrigin:CGPointMake(selectedCol * 32.0f - 8.0f, selectedRow * 32.0f - 8.0f)];
 	[selectedView setAlpha:0.5f];
