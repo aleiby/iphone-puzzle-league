@@ -9,7 +9,8 @@ enum EBlockType
 	eBlockType_Purple,
 	eBlockType_Special,
 
-	eBlockType_Max
+	eBlockType_Max,
+	eBlockType_Invalid = -1
 };
 
 #define MATCH_OFFSET		3

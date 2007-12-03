@@ -149,6 +149,11 @@ void PPL_Feed(int ticks)
 
 int PPL_GetBlockType(int row, int col)
 {
+	if (row < 0 || row >= BOARD_ROWS)
+		return eBlockType_Invalid;
+	if (col < 0 || col >= BOARD_COLS)
+		return eBlockType_Invalid;
+
 	// Blink when matched.
 	if (blocks[row][col] & (1 << MATCH_OFFSET))
 		return eBlockType_Empty;
