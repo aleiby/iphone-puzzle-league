@@ -27,13 +27,18 @@
 
 @interface iBoard : UIView
 {
-	CGPoint clicked;
-	NSTimer* timer;
+	int selectedRow, selectedCol, desiredCol;
 
 	iBoardView* boardView;
 	iDebugView* debugView;
+
+	UIView* selectedView;
+	UIView* cursorView;
+
+	NSTimer* timer;
 }
 
+-(void)reset;
 -(void)play;
 -(void)step;
 
@@ -90,6 +95,19 @@
 	[playButton setBackgroundColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), green)];
 	[self addSubview: playButton];
 
+	float yellow[4] = {1,1,0,1};
+	CGRect selectedRect = CGRectMake(0.0f, 0.0f, 48.0f, 48.0f);
+	selectedView = [[[UIView alloc] initWithFrame:selectedRect] autorelease];
+	[selectedView setBackgroundColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), yellow)];
+	[self addSubview: selectedView];
+
+	float black[4] = {0,0,0,1};
+	CGRect cursorRect = CGRectMake(0.0f, 0.0f, 16.0f, 16.0f);
+	cursorView = [[[UIView alloc] initWithFrame:cursorRect] autorelease];
+	[cursorView setBackgroundColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), black)];
+	[self addSubview: cursorView];
+
+	[self reset];
 	[self play];
 	return self;
 }
@@ -115,42 +133,79 @@
 
 - (void) update
 {
+	if (selectedRow >= 0 && selectedCol >= 0 && desiredCol >=0)
+	{
+		if (desiredCol < selectedCol &&  PPL_MoveLeft(selectedRow, selectedCol))
+			--selectedCol;
+		if (desiredCol > selectedCol &&  PPL_MoveRight(selectedRow, selectedCol))
+			++selectedCol;
+
+		[selectedView setOrigin:CGPointMake(selectedCol * 32.0f - 8.0f, selectedRow * 32.0f - 8.0f)];
+	}
+
 	PPL_Update();
 
 	[boardView update];
 	[debugView update];
 }
 
+- (void) reset
+{
+	selectedRow = selectedCol = desiredCol = -1;
+
+	[selectedView setAlpha:0.0f];
+	[cursorView setAlpha:0.0f];
+}
+
+- (CGPoint) getRelativeLocation:(GSEvent*)event
+{
+	CGPoint location = GSEventGetLocationInWindow(event);
+	CGRect frame = [self frame];
+	location.x -= frame.origin.x;
+	location.y -= frame.origin.y - 16.0f;	// I'm not sure where this is coming from.
+	return location;
+}
+
+- (int) colGivenX:(float)x
+{
+	CGRect frame = [self frame];
+	return x / frame.size.width * BOARD_COLS;
+}
+
+- (int) rowGivenY:(float)y
+{
+	CGRect frame = [self frame];
+	return y / frame.size.height * BOARD_ROWS;
+}
+
 - (void)mouseDown:(GSEvent*)event
 {
-	clicked = GSEventGetLocationInWindow(event);
+	CGPoint location = [self getRelativeLocation:event];
+	selectedCol = [self colGivenX:location.x];
+	selectedRow = [self rowGivenY:location.y];
+
+	[selectedView setOrigin:CGPointMake(selectedCol * 32.0f - 8.0f, selectedRow * 32.0f - 8.0f)];
+	[selectedView setAlpha:0.5f];
+
+	location.x -= 8.0f;
+	location.y -= 8.0f;
+	[cursorView setOrigin:location];
+	[cursorView setAlpha:1.0f];
+}
+
+- (void)mouseUp:(GSEvent*)event
+{
+	[self reset];
 }
 
 - (void)mouseDragged:(GSEvent*)event
 {
-	CGPoint location = GSEventGetLocationInWindow(event);
-	float diff = location.x - clicked.x;
-	if (diff > 32.0f)
-	{
-		CGPoint origin = [self origin];
-		CGRect frame = [self frame];
-		int row = (clicked.y - origin.y) / frame.size.height * BOARD_ROWS;
-		int col = (clicked.x - origin.x) / frame.size.width * BOARD_COLS;
-		PPL_MoveRight(row,col);
-		clicked = location;
-		return;
-	}
+	CGPoint location = [self getRelativeLocation:event];
+	desiredCol = [self colGivenX:location.x];
 
-	if (diff < -32.0f)
-	{
-		CGPoint origin = [self origin];
-		CGRect frame = [self frame];
-		int row = (clicked.y - origin.y) / frame.size.height * BOARD_ROWS;
-		int col = (clicked.x - origin.x) / frame.size.width * BOARD_COLS;
-		PPL_MoveLeft(row,col);
-		clicked = location;
-		return;
-	}
+	location.x -= 8.0f;
+	location.y -= 8.0f;
+	[cursorView setOrigin:location];
 }
 
 @end

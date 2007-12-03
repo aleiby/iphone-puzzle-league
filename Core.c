@@ -161,30 +161,38 @@ int PPL_IsLocked(int row, int col)
 	return (blocks[row][col] & ~eBlockFlag_TypeMask);
 }
 
-void PPL_MoveRight(int row, int col)
+int PPL_MoveRight(int row, int col)
 {
 	if (col == BOARD_COLS-1)
-		return;
+		return 0;
+
 	int block = blocks[row][col];
 	if (block & ~eBlockFlag_TypeMask)
-		return;
+		return 0;
+
 	int other = blocks[row][col+1];
 	if (other & ~eBlockFlag_TypeMask)
-		return;
+		return 0;
+
 	blocks[row][col] = other;
 	blocks[row][col+1] = block;
+	return 1;
 }
 
-void PPL_MoveLeft(int row, int col)
+int PPL_MoveLeft(int row, int col)
 {
 	if (col == 0)
-		return;
+		return 0;
+
 	int block = blocks[row][col];
 	if (block & ~eBlockFlag_TypeMask)
-		return;
+		return 0;
+
 	int other = blocks[row][col-1];
 	if (other & ~eBlockFlag_TypeMask)
-		return;
+		return 0;
+
 	blocks[row][col] = other;
 	blocks[row][col-1] = block;
+	return 1;
 }
