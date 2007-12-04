@@ -200,12 +200,12 @@
 	[cursorView setOrigin:location];
 	[cursorView setAlpha:1.0f];
 }
-
+/*
 - (void)mouseUp:(GSEvent*)event
 {
 	[self reset];
 }
-
+*/
 - (void)mouseDragged:(GSEvent*)event
 {
 	CGPoint location = [self getRelativeLocation:event];
