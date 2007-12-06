@@ -4,6 +4,10 @@
 #import "App.h"
 #import "Core.h"
 
+//!!ARL: Separate interface (selection, dragging, feeding) from visualization.
+
+#define BLOCK_SIZE 34.0f
+
 @interface iBoardBase : UIView
 @end
 
@@ -31,9 +35,7 @@
 
 	iBoardView* boardView;
 	iDebugView* debugView;
-
 	UIView* selectedView;
-	UIView* cursorView;
 
 	NSTimer* timer;
 }
@@ -101,12 +103,6 @@
 	[selectedView setBackgroundColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), yellow)];
 	[self addSubview: selectedView];
 
-	float black[4] = {0,0,0,1};
-	CGRect cursorRect = CGRectMake(0.0f, 0.0f, 16.0f, 16.0f);
-	cursorView = [[[UIView alloc] initWithFrame:cursorRect] autorelease];
-	[cursorView setBackgroundColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), black)];
-	[self addSubview: cursorView];
-
 	[self reset];
 	[self play];
 	return self;
@@ -142,7 +138,8 @@
 		if (desiredCol > selectedCol &&  PPL_MoveRight(selectedRow, selectedCol))
 			++selectedCol;
 
-		[selectedView setOrigin:CGPointMake(selectedCol * 32.0f - 8.0f, selectedRow * 32.0f - 8.0f)];
+		float offset = BLOCK_SIZE / 4.0f;
+		[selectedView setOrigin:CGPointMake(selectedCol * BLOCK_SIZE - offset, selectedRow * BLOCK_SIZE - offset)];
 	}
 
 	PPL_Update();
@@ -158,9 +155,7 @@
 - (void) reset
 {
 	selectedRow = selectedCol = desiredCol = -1;
-
 	[selectedView setAlpha:0.0f];
-	[cursorView setAlpha:0.0f];
 }
 
 - (CGPoint) getRelativeLocation:(GSEvent*)event
@@ -192,28 +187,15 @@
 
 	desiredCol = selectedCol;
 
-	[selectedView setOrigin:CGPointMake(selectedCol * 32.0f - 8.0f, selectedRow * 32.0f - 8.0f)];
+	float offset = BLOCK_SIZE / 4.0f;
+	[selectedView setOrigin:CGPointMake(selectedCol * BLOCK_SIZE - offset, selectedRow * BLOCK_SIZE - offset)];
 	[selectedView setAlpha:0.5f];
+}
 
-	location.x -= 8.0f;
-	location.y -= 8.0f;
-	[cursorView setOrigin:location];
-	[cursorView setAlpha:1.0f];
-}
-/*
-- (void)mouseUp:(GSEvent*)event
-{
-	[self reset];
-}
-*/
 - (void)mouseDragged:(GSEvent*)event
 {
 	CGPoint location = [self getRelativeLocation:event];
 	desiredCol = [self colGivenX:location.x];
-
-	location.x -= 8.0f;
-	location.y -= 8.0f;
-	[cursorView setOrigin:location];
 }
 
 @end
@@ -224,17 +206,18 @@
 {
 	self = [super initWithFrame:frame];
 
-	CGRect blockRect = CGRectMake(0.0f, 0.0f, 32.0f, 32.0f);
+	CGRect blockRect = CGRectMake(0.0f, 0.0f, BLOCK_SIZE, BLOCK_SIZE);
 	for (int row=0; row<BOARD_ROWS; row++)
 	{
 		for (int col=0; col<BOARD_COLS; col++)
 		{
 			UIImageView* block = [[[UIImageView alloc] initWithFrame:blockRect] autorelease];
+			[block setAlpha:0.75f];
 			[self addSubview:block];
-			blockRect.origin.x += 32.0f;
+			blockRect.origin.x += BLOCK_SIZE;
 		}
 		blockRect.origin.x = 0.0f;
-		blockRect.origin.y += 32.0f;
+		blockRect.origin.y += BLOCK_SIZE;
 	}
 
 	return self;
@@ -316,6 +299,7 @@
 	CGRect mainViewRect;
 
 	PPL_Init();
+	PPL_Feed();
 
 	// Set up a window.
 	windowRect = [UIHardware fullScreenApplicationContentRect];
@@ -358,10 +342,11 @@
 	float backColor[4] = {0,0,0,0.5};
 	CGColorRef backgroundColor = CGColorCreate(CGColorSpaceCreateDeviceRGB(), backColor);
 
-	UIView* mainBack = [[[UIView alloc] initWithFrame:CGRectMake(16.0f,77.0f,192.0f,384.0f)] autorelease];
+	CGRect mainRect = CGRectMake(12.0f,32.0f,BLOCK_SIZE*BOARD_COLS,BLOCK_SIZE*BOARD_ROWS);
+	UIView* mainBack = [[[UIView alloc] initWithFrame:mainRect] autorelease];
 	[mainBack setBackgroundColor: backgroundColor];
 	[mainView addSubview: mainBack];
-
+/*
 	CGRect rightFrame = CGRectMake(223.0f, 132.0f, 64.0f, 128.0f);
 	UIView* enemyBack = [[[UIView alloc] initWithFrame:rightFrame] autorelease];
 	[enemyBack setBackgroundColor: backgroundColor];
@@ -378,10 +363,9 @@
 	UIView* livesBack = [[[UIView alloc] initWithFrame:rightFrame] autorelease];
 	[livesBack setBackgroundColor: backgroundColor];
 	[mainView addSubview: livesBack];
-
+*/
 	// Create a playing board.
-	CGRect playingRect = CGRectMake(16.0f,77.0f,192.0f,384.0f);
-	iBoard* board = [[[iBoard alloc] initWithFrame:playingRect] autorelease];
+	iBoard* board = [[[iBoard alloc] initWithFrame:mainRect] autorelease];
 	[mainView addSubview: board];
 }
 
