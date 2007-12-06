@@ -23,6 +23,11 @@ int max(int a, int b)
 	return (a > b) ? a : b;
 }
 
+int rand(int a, int b)
+{
+	return a + (abs(quickrand()) % (b - a));
+}
+
 int blocks[BOARD_ROWS][BOARD_COLS];
 int ticks = 0;
 
@@ -30,7 +35,7 @@ void PPL_Init()
 {
 	for (int row = 0; row < BOARD_ROWS; row++)
 		for (int col = 0; col < BOARD_COLS; col++)
-			blocks[row][col] = abs(quickrand()) % eBlockType_Max;
+			blocks[row][col] = rand(eBlockType_Empty, eBlockType_Max);
 }
 
 int DecayBlock(int* block, int mask, int inc)
@@ -49,6 +54,9 @@ int DecayBlock(int* block, int mask, int inc)
 
 void PPL_Update(void)
 {
+	if (++ticks < 0)
+		return;
+
 	// decay matched/falling blocks.
 	for (int row = 0; row < BOARD_ROWS; row++)
 		for (int col = 0; col < BOARD_COLS; col++)
@@ -139,12 +147,19 @@ void PPL_Update(void)
 
 			NEXT_BLOCK:;
 		}
-
-	ticks++;
 }
 
-void PPL_Feed(int ticks)
+void PPL_Feed(void)
 {
+	for (int col = 0; col < BOARD_COLS; col++)
+		blocks[BOARD_ROWS-1][col] &= ~eBlockFlag_Locked;
+
+	for (int row = 0; row < BOARD_ROWS-1; row++)
+		for (int col = 0; col < BOARD_COLS; col++)
+			blocks[row][col] = blocks[row+1][col];
+
+	for (int col = 0; col < BOARD_COLS; col++)
+		blocks[BOARD_ROWS-1][col] = rand(eBlockType_Empty+1, eBlockType_Max) | eBlockFlag_Locked;
 }
 
 int PPL_GetBlockType(int row, int col)
