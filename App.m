@@ -17,6 +17,7 @@
 }
 
 -(void)update;
+-(void)swapRow:(int)row fromCol:(int)from toCol:(int)to;
 
 @end
 
@@ -134,9 +135,15 @@
 	if (selectedRow >= 0 && selectedCol >= 0 && desiredCol >=0)
 	{
 		if (desiredCol < selectedCol &&  PPL_MoveLeft(selectedRow, selectedCol))
-			--selectedCol;
-		if (desiredCol > selectedCol &&  PPL_MoveRight(selectedRow, selectedCol))
-			++selectedCol;
+		{
+			int from = selectedCol--;
+			[boardView swapRow:selectedRow fromCol:from toCol:selectedCol];
+		}
+		else if (desiredCol > selectedCol &&  PPL_MoveRight(selectedRow, selectedCol))
+		{
+			int from = selectedCol++;
+			[boardView swapRow:selectedRow fromCol:from toCol:selectedCol];
+		}
 
 		float offset = BLOCK_SIZE / 4.0f;
 		[selectedView setOrigin:CGPointMake(selectedCol * BLOCK_SIZE - offset, selectedRow * BLOCK_SIZE - offset)];
@@ -255,6 +262,28 @@
 	}
 
 	[self setNeedsDisplay];
+}
+
+- (void) swapRow:(int)row fromCol:(int)from toCol:(int)to
+{
+	NSArray* blocks = [self subviews];
+
+	int offset = row * BOARD_COLS;
+	UIView* fromView = (UIView*)[blocks objectAtIndex:offset + from];
+	UIView* toView = (UIView*)[blocks objectAtIndex:offset + to];
+
+	CGPoint fromOrigin = [fromView origin];
+	CGPoint toOrigin = [toView origin];
+
+	[fromView setOrigin:toOrigin];
+	[toView setOrigin:fromOrigin];
+
+	[UIView beginAnimations:nil];
+	[UIView setAnimationDelay:0.0];
+	[UIView setAnimationDuration:0.1];
+	[fromView setOrigin:fromOrigin];
+	[toView setOrigin:toOrigin];
+	[UIView endAnimations];
 }
 
 @end

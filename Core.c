@@ -23,7 +23,7 @@ int max(int a, int b)
 	return (a > b) ? a : b;
 }
 
-int rand(int a, int b)
+int randRange(int a, int b)
 {
 	return a + (abs(quickrand()) % (b - a));
 }
@@ -35,7 +35,7 @@ void PPL_Init()
 {
 	for (int row = 0; row < BOARD_ROWS; row++)
 		for (int col = 0; col < BOARD_COLS; col++)
-			blocks[row][col] = rand(eBlockType_Empty, eBlockType_Max);
+			blocks[row][col] = randRange(eBlockType_Empty, eBlockType_Max);
 }
 
 int DecayBlock(int* block, int mask, int inc)
@@ -159,7 +159,7 @@ void PPL_Feed(void)
 			blocks[row][col] = blocks[row+1][col];
 
 	for (int col = 0; col < BOARD_COLS; col++)
-		blocks[BOARD_ROWS-1][col] = rand(eBlockType_Empty+1, eBlockType_Max) | eBlockFlag_Locked;
+		blocks[BOARD_ROWS-1][col] = randRange(eBlockType_Empty+1, eBlockType_Max) | eBlockFlag_Locked;
 }
 
 int PPL_GetBlockType(int row, int col)
