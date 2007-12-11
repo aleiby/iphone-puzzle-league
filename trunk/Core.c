@@ -181,6 +181,17 @@ int PPL_IsLocked(int row, int col)
 	return (blocks[row][col] & ~eBlockFlag_TypeMask);
 }
 
+int PPL_IsFalling(int row, int col)
+{
+	int block = blocks[row][col];
+	if (block & eBlockFlag_FallingMask)
+	{
+		int type = (block & eBlockFlag_TypeMask);
+		return (type != eBlockType_Empty);
+	}
+	return 0;
+}
+
 int PPL_MoveRight(int row, int col)
 {
 	if (col == BOARD_COLS-1)
