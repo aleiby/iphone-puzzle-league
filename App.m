@@ -17,7 +17,9 @@
 }
 
 -(void)update;
--(void)swapRow:(int)row fromCol:(int)from toCol:(int)to;
+-(void)swapRow:(int)row colA:(int)a colB:(int)b;
+-(void)swapCol:(int)col rowA:(int)a rowB:(int)b;
+-(void)swapBlock:(UIView*)a andBlock:(UIView*)b;
 
 @end
 
@@ -131,22 +133,33 @@
 - (void) update
 {
 	int type = PPL_GetBlockType(selectedRow, selectedCol);
-	
+
+	// Update dragging...
 	if (selectedRow >= 0 && selectedCol >= 0 && desiredCol >=0)
 	{
 		if (desiredCol < selectedCol &&  PPL_MoveLeft(selectedRow, selectedCol))
 		{
 			int from = selectedCol--;
-			[boardView swapRow:selectedRow fromCol:from toCol:selectedCol];
+			[boardView swapRow:selectedRow colA:from colB:selectedCol];
 		}
 		else if (desiredCol > selectedCol &&  PPL_MoveRight(selectedRow, selectedCol))
 		{
 			int from = selectedCol++;
-			[boardView swapRow:selectedRow fromCol:from toCol:selectedCol];
+			[boardView swapRow:selectedRow colA:from colB:selectedCol];
 		}
 
 		float offset = BLOCK_SIZE / 4.0f;
 		[selectedView setOrigin:CGPointMake(selectedCol * BLOCK_SIZE - offset, selectedRow * BLOCK_SIZE - offset)];
+	}
+
+	// Animate blocks that will fall this update...
+	for (int row=0; row<BOARD_ROWS; row++)
+	{
+		for (int col=0; col<BOARD_COLS; col++)
+		{
+			if (PPL_IsFalling(row, col))
+				[boardView swapCol:col rowA:row rowB:row+1];
+		}
 	}
 
 	PPL_Update();
@@ -238,9 +251,14 @@
 {
 	self = [super initWithFrame:frame];
 
+#if 1 //DEBUG - UIView animations don't get updated unless rendered.
+	id imageNames[eBlockType_Max] = {@"locked",@"red",@"green",@"blue",@"yellow",@"pink",@"special"};
+	for (int i=0; i<eBlockType_Max; i++)
+#else
 	id imageNames[eBlockType_Max] = {@"",@"red",@"green",@"blue",@"yellow",@"pink",@"special"};
 	blockImages[0] = nil;
 	for (int i=1; i<eBlockType_Max; i++)
+#endif
 		blockImages[i] = [[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:imageNames[i] ofType:@"png"]] retain];
 
 	return self;
@@ -264,25 +282,40 @@
 	[self setNeedsDisplay];
 }
 
-- (void) swapRow:(int)row fromCol:(int)from toCol:(int)to
+- (void) swapRow:(int)row colA:(int)a colB:(int)b
 {
 	NSArray* blocks = [self subviews];
 
 	int offset = row * BOARD_COLS;
-	UIView* fromView = (UIView*)[blocks objectAtIndex:offset + from];
-	UIView* toView = (UIView*)[blocks objectAtIndex:offset + to];
+	UIView* viewA = (UIView*)[blocks objectAtIndex:offset + a];
+	UIView* viewB = (UIView*)[blocks objectAtIndex:offset + b];
 
-	CGPoint fromOrigin = [fromView origin];
-	CGPoint toOrigin = [toView origin];
+	[self swapBlock:viewA andBlock:viewB];
+}
 
-	[fromView setOrigin:toOrigin];
-	[toView setOrigin:fromOrigin];
+- (void) swapCol:(int)col rowA:(int)a rowB:(int)b
+{
+	NSArray* blocks = [self subviews];
+
+	UIView* viewA = (UIView*)[blocks objectAtIndex:a * BOARD_COLS + col];
+	UIView* viewB = (UIView*)[blocks objectAtIndex:b * BOARD_COLS + col];
+
+	[self swapBlock:viewA andBlock:viewB];
+}
+
+- (void) swapBlock:(UIView*)a andBlock:(UIView*)b
+{
+	CGPoint originA = [a origin];
+	CGPoint originB = [b origin];
+
+	[a setOrigin:originB];
+	[b setOrigin:originA];
 
 	[UIView beginAnimations:nil];
 	[UIView setAnimationDelay:0.0];
 	[UIView setAnimationDuration:0.1];
-	[fromView setOrigin:fromOrigin];
-	[toView setOrigin:toOrigin];
+	[a setOrigin:originA];
+	[b setOrigin:originB];
 	[UIView endAnimations];
 }
 
