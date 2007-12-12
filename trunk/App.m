@@ -38,7 +38,7 @@
 
 	iBoardView* boardView;
 	iDebugView* debugView;
-	UIView* selectedView;
+	UIImageView* selectedView;
 
 	NSTimer* timer;
 }
@@ -87,7 +87,7 @@
 
 	debugView = [[[iDebugView alloc] initWithFrame:frame] autorelease];
 	[self addSubview: debugView];
-
+/*
 	float red[4] = {1,0,0,0.5};
 	CGRect buttonRect = CGRectMake(0.0f, 0.0f, 64.0f, 48.0f);
 	UIView* stepButton = [[[StepButton alloc] initWithFrame:buttonRect] autorelease];
@@ -99,11 +99,12 @@
 	UIView* playButton = [[[PlayButton alloc] initWithFrame:buttonRect] autorelease];
 	[playButton setBackgroundColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), green)];
 	[self addSubview: playButton];
+*/
 
-	float yellow[4] = {1,1,0,1};
-	CGRect selectedRect = CGRectMake(0.0f, 0.0f, 48.0f, 48.0f);
-	selectedView = [[[UIView alloc] initWithFrame:selectedRect] autorelease];
-	[selectedView setBackgroundColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), yellow)];
+	CGRect selectedRect = CGRectMake(0.0f, 0.0f, 68.0f, 68.0f);
+	selectedView = [[[UIImageView alloc] initWithFrame:selectedRect] autorelease];
+	UIImage* selectedImage = [[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"selected" ofType:@"png"]] retain];
+	[selectedView setImage:selectedImage];
 	[self addSubview: selectedView];
 
 	[self reset];
@@ -114,7 +115,7 @@
 - (void) play
 {
     timer = [NSTimer
-        scheduledTimerWithTimeInterval:0.1
+        scheduledTimerWithTimeInterval:0.2
         target: self
         selector: @selector(update)
         userInfo: nil
@@ -148,7 +149,7 @@
 			[boardView swapRow:selectedRow colA:from colB:selectedCol];
 		}
 
-		float offset = BLOCK_SIZE / 4.0f;
+		float offset = BLOCK_SIZE / 2.0f;
 		[selectedView setOrigin:CGPointMake(selectedCol * BLOCK_SIZE - offset, selectedRow * BLOCK_SIZE - offset)];
 	}
 
@@ -207,9 +208,9 @@
 
 	desiredCol = selectedCol;
 
-	float offset = BLOCK_SIZE / 4.0f;
+	float offset = BLOCK_SIZE / 2.0f;
 	[selectedView setOrigin:CGPointMake(selectedCol * BLOCK_SIZE - offset, selectedRow * BLOCK_SIZE - offset)];
-	[selectedView setAlpha:0.5f];
+	[selectedView setAlpha:1.0f];
 }
 
 - (void)mouseDragged:(GSEvent*)event
@@ -232,7 +233,7 @@
 		for (int col=0; col<BOARD_COLS; col++)
 		{
 			UIImageView* block = [[[UIImageView alloc] initWithFrame:blockRect] autorelease];
-			[block setAlpha:0.75f];
+			//[block setAlpha:0.75f];
 			[self addSubview:block];
 			blockRect.origin.x += BLOCK_SIZE;
 		}
@@ -251,14 +252,8 @@
 {
 	self = [super initWithFrame:frame];
 
-#if 1 //DEBUG - UIView animations don't get updated unless rendered.
-	id imageNames[eBlockType_Max] = {@"locked",@"red",@"green",@"blue",@"yellow",@"pink",@"special"};
+	id imageNames[eBlockType_Max] = {@"empty",@"red",@"green",@"blue",@"yellow",@"pink",@"special"};
 	for (int i=0; i<eBlockType_Max; i++)
-#else
-	id imageNames[eBlockType_Max] = {@"",@"red",@"green",@"blue",@"yellow",@"pink",@"special"};
-	blockImages[0] = nil;
-	for (int i=1; i<eBlockType_Max; i++)
-#endif
 		blockImages[i] = [[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:imageNames[i] ofType:@"png"]] retain];
 
 	return self;
@@ -313,7 +308,7 @@
 
 	[UIView beginAnimations:nil];
 	[UIView setAnimationDelay:0.0];
-	[UIView setAnimationDuration:0.1];
+	[UIView setAnimationDuration:0.2];
 	[a setOrigin:originA];
 	[b setOrigin:originB];
 	[UIView endAnimations];
@@ -334,6 +329,15 @@
 
 - (void) update
 {
+#if 1 //TEMP
+	NSArray* blocks = [self subviews];
+	int i = (BOARD_ROWS-1) * BOARD_COLS;
+	for (int col=0; col<BOARD_COLS; col++)
+	{
+		UIImageView* block = (UIImageView*)[blocks objectAtIndex:i++];
+		[block setImage:lockedImage];
+	}
+#else
 	NSArray* blocks = [self subviews];
 	for (int i=0, row=0; row<BOARD_ROWS; row++)
 	{
@@ -344,6 +348,7 @@
 				lockedImage : nil];
 		}
 	}
+#endif
 
 	[self setNeedsDisplay];
 }
@@ -400,15 +405,58 @@
 	[character setFrame:CGRectMake(48,0,320,480)];
 	[UIView endAnimations];
 
+	// Scrolling noise.
+	CGRect imageRect = CGRectMake(0.0f, 0.0f, 128.0f, 128.0f);
+	int numAcross = 4;
+	int numHigh = 5;
+	UIView* scrollView = [[[UIView alloc] initWithFrame:CGRectMake(0.0f,0.0f,
+		numAcross * imageRect.size.width,
+		numHigh * imageRect.size.height)] autorelease];
+	UIImage* scrollImage = [[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"dblue007" ofType:@"jpg"]] retain];
+	for (int iDown=0; iDown<numHigh; iDown++)
+	{
+		for (int iAcross=0; iAcross<numAcross; iAcross++)
+		{
+			
+			UIImageView* imageView = [[[UIImageView alloc] initWithFrame:imageRect] autorelease];
+			[imageView setImage:scrollImage];
+			[imageView setAlpha:0.25f];
+			[scrollView addSubview:imageView];
+			imageRect.origin.x += imageRect.size.width;
+		}
+		imageRect.origin.x = 0.0f;
+		imageRect.origin.y += imageRect.size.height;
+	}
+	UIView* scrollView2 = [[[UIView alloc] initWithFrame:CGRectMake(0.0f,0.0f,
+		numAcross * imageRect.size.width,
+		numHigh * imageRect.size.height)] autorelease];
+	[scrollView2 addSubview: scrollView];
+	[mainView addSubview: scrollView2];
+
+	[UIView beginAnimations:nil];
+	[UIView setAnimationDuration:19.0];
+	[UIView setAnimationRepeatCount:9999.0];
+	[UIView setAnimationAutoreverses:true];
+	[scrollView setOrigin:CGPointMake(-imageRect.size.width,0)];
+	[UIView endAnimations];
+
+	[UIView beginAnimations:nil];
+	[UIView setAnimationDuration:13.0];
+	[UIView setAnimationRepeatCount:9999.0];
+	[UIView setAnimationAutoreverses:true];
+	[scrollView2 setOrigin:CGPointMake(0,-imageRect.size.height)];
+	[UIView endAnimations];
+
 	// Create backgrounds
 	float backColor[4] = {0,0,0,0.5};
 	CGColorRef backgroundColor = CGColorCreate(CGColorSpaceCreateDeviceRGB(), backColor);
 
 	CGRect mainRect = CGRectMake(12.0f,32.0f,BLOCK_SIZE*BOARD_COLS,BLOCK_SIZE*BOARD_ROWS);
+/*
 	UIView* mainBack = [[[UIView alloc] initWithFrame:mainRect] autorelease];
 	[mainBack setBackgroundColor: backgroundColor];
 	[mainView addSubview: mainBack];
-/*
+
 	CGRect rightFrame = CGRectMake(223.0f, 132.0f, 64.0f, 128.0f);
 	UIView* enemyBack = [[[UIView alloc] initWithFrame:rightFrame] autorelease];
 	[enemyBack setBackgroundColor: backgroundColor];
