@@ -101,7 +101,7 @@
 	[self addSubview: playButton];
 */
 
-	CGRect selectedRect = CGRectMake(0.0f, 0.0f, 68.0f, 68.0f);
+	CGRect selectedRect = CGRectMake(0.0f, 0.0f, 68.0f, 34.0f);
 	selectedView = [[[UIImageView alloc] initWithFrame:selectedRect] autorelease];
 	UIImage* selectedImage = [[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"selected" ofType:@"png"]] retain];
 	[selectedView setImage:selectedImage];
@@ -115,7 +115,7 @@
 - (void) play
 {
     timer = [NSTimer
-        scheduledTimerWithTimeInterval:0.2
+        scheduledTimerWithTimeInterval:0.1
         target: self
         selector: @selector(update)
         userInfo: nil
@@ -142,15 +142,20 @@
 		{
 			int from = selectedCol--;
 			[boardView swapRow:selectedRow colA:from colB:selectedCol];
+
+			CGPoint selectedOrigin = [selectedView origin];
+			selectedOrigin.x = BLOCK_SIZE * min(selectedCol, BOARD_COLS-2);
+			[selectedView setOrigin:selectedOrigin];
 		}
 		else if (desiredCol > selectedCol &&  PPL_MoveRight(selectedRow, selectedCol))
 		{
 			int from = selectedCol++;
 			[boardView swapRow:selectedRow colA:from colB:selectedCol];
-		}
 
-		float offset = BLOCK_SIZE / 2.0f;
-		[selectedView setOrigin:CGPointMake(selectedCol * BLOCK_SIZE - offset, selectedRow * BLOCK_SIZE - offset)];
+			CGPoint selectedOrigin = [selectedView origin];
+			selectedOrigin.x = BLOCK_SIZE * max(selectedCol, 1) - BLOCK_SIZE;
+			[selectedView setOrigin:selectedOrigin];
+		}
 	}
 
 	// Animate blocks that will fall this update...
@@ -208,8 +213,10 @@
 
 	desiredCol = selectedCol;
 
-	float offset = BLOCK_SIZE / 2.0f;
-	[selectedView setOrigin:CGPointMake(selectedCol * BLOCK_SIZE - offset, selectedRow * BLOCK_SIZE - offset)];
+	CGPoint selectedOrigin;
+	selectedOrigin.x = BLOCK_SIZE * min(selectedCol, BOARD_COLS-2);
+	selectedOrigin.y = BLOCK_SIZE * selectedRow;
+	[selectedView setOrigin:selectedOrigin];
 	[selectedView setAlpha:1.0f];
 }
 
@@ -308,7 +315,7 @@
 
 	[UIView beginAnimations:nil];
 	[UIView setAnimationDelay:0.0];
-	[UIView setAnimationDuration:0.2];
+	[UIView setAnimationDuration:0.1];
 	[a setOrigin:originA];
 	[b setOrigin:originB];
 	[UIView endAnimations];
@@ -405,54 +412,13 @@
 	[character setFrame:CGRectMake(48,0,320,480)];
 	[UIView endAnimations];
 
-	// Scrolling noise.
-	CGRect imageRect = CGRectMake(0.0f, 0.0f, 128.0f, 128.0f);
-	int numAcross = 4;
-	int numHigh = 5;
-	UIView* scrollView = [[[UIView alloc] initWithFrame:CGRectMake(0.0f,0.0f,
-		numAcross * imageRect.size.width,
-		numHigh * imageRect.size.height)] autorelease];
-	UIImage* scrollImage = [[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"dblue007" ofType:@"jpg"]] retain];
-	for (int iDown=0; iDown<numHigh; iDown++)
-	{
-		for (int iAcross=0; iAcross<numAcross; iAcross++)
-		{
-			
-			UIImageView* imageView = [[[UIImageView alloc] initWithFrame:imageRect] autorelease];
-			[imageView setImage:scrollImage];
-			[imageView setAlpha:0.25f];
-			[scrollView addSubview:imageView];
-			imageRect.origin.x += imageRect.size.width;
-		}
-		imageRect.origin.x = 0.0f;
-		imageRect.origin.y += imageRect.size.height;
-	}
-	UIView* scrollView2 = [[[UIView alloc] initWithFrame:CGRectMake(0.0f,0.0f,
-		numAcross * imageRect.size.width,
-		numHigh * imageRect.size.height)] autorelease];
-	[scrollView2 addSubview: scrollView];
-	[mainView addSubview: scrollView2];
+	CGRect mainRect = CGRectMake(12.0f,32.0f,BLOCK_SIZE*BOARD_COLS,BLOCK_SIZE*BOARD_ROWS);
 
-	[UIView beginAnimations:nil];
-	[UIView setAnimationDuration:19.0];
-	[UIView setAnimationRepeatCount:9999.0];
-	[UIView setAnimationAutoreverses:true];
-	[scrollView setOrigin:CGPointMake(-imageRect.size.width,0)];
-	[UIView endAnimations];
-
-	[UIView beginAnimations:nil];
-	[UIView setAnimationDuration:13.0];
-	[UIView setAnimationRepeatCount:9999.0];
-	[UIView setAnimationAutoreverses:true];
-	[scrollView2 setOrigin:CGPointMake(0,-imageRect.size.height)];
-	[UIView endAnimations];
-
+/*
 	// Create backgrounds
 	float backColor[4] = {0,0,0,0.5};
 	CGColorRef backgroundColor = CGColorCreate(CGColorSpaceCreateDeviceRGB(), backColor);
 
-	CGRect mainRect = CGRectMake(12.0f,32.0f,BLOCK_SIZE*BOARD_COLS,BLOCK_SIZE*BOARD_ROWS);
-/*
 	UIView* mainBack = [[[UIView alloc] initWithFrame:mainRect] autorelease];
 	[mainBack setBackgroundColor: backgroundColor];
 	[mainView addSubview: mainBack];
