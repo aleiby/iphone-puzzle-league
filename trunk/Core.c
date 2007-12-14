@@ -1,5 +1,6 @@
 #include "Core.h"
 #include "stdio.h"
+#include <sys/time.h>
 
 int prev_rand = 0;
 int quickrand()
@@ -33,9 +34,27 @@ int ticks = 0;
 
 void PPL_Init()
 {
+	struct timeval t;
+	gettimeofday(&t,0);
+	prev_rand = t.tv_sec;
+
+	// Clear first half of board.
+	int filledRows = BOARD_ROWS / 2;
+	for (int row = 0; row < filledRows; row++)
+		for (int col = 0; col < BOARD_COLS; col++)
+			blocks[row][col] = eBlockType_Empty;
+
+	// Fill in the rest with normal blocks (not special).
+	for (int row = filledRows; row < BOARD_ROWS; row++)
+		for (int col = 0; col < BOARD_COLS; col++)
+			blocks[row][col] = randRange(eBlockType_Empty, eBlockType_Special);
+
+	// Update until the blocks settle.
+	TRY_AGAIN:	PPL_Update();
 	for (int row = 0; row < BOARD_ROWS; row++)
 		for (int col = 0; col < BOARD_COLS; col++)
-			blocks[row][col] = randRange(eBlockType_Empty, eBlockType_Max);
+			if (blocks[row][col] & ~eBlockFlag_TypeMask)
+				goto TRY_AGAIN;
 }
 
 int DecayBlock(int* block, int mask, int inc)
@@ -54,9 +73,6 @@ int DecayBlock(int* block, int mask, int inc)
 
 void PPL_Update(void)
 {
-	if (++ticks < 0)
-		return;
-
 	// decay matched/falling blocks.
 	for (int row = 0; row < BOARD_ROWS; row++)
 		for (int col = 0; col < BOARD_COLS; col++)
@@ -147,6 +163,8 @@ void PPL_Update(void)
 
 			NEXT_BLOCK:;
 		}
+
+	++ticks;
 }
 
 void PPL_Feed(void)

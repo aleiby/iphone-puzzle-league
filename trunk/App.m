@@ -41,11 +41,18 @@
 	UIImageView* selectedView;
 
 	NSTimer* timer;
+	float feedInterval;
+	float feedOffset;
 }
 
+-(id)init;
 -(void)reset;
+
 -(void)play;
 -(void)step;
+-(void)feed;
+
+-(void)setFeedOffset:(float)offset;
 
 @end
 
@@ -75,18 +82,19 @@
 
 @implementation iBoard
 
-- (id)initWithFrame:(CGRect)frame
+- (id)init
 {
+	CGRect frame = CGRectMake(0,0,BLOCK_SIZE*BOARD_COLS,BLOCK_SIZE*BOARD_ROWS);
 	self = [super initWithFrame:frame];
 
-	frame.origin.x = 0.0f;
-	frame.origin.y = 0.0f;
+	feedInterval = 0.15;
+	feedOffset = 0.0;
 
 	boardView = [[[iBoardView alloc] initWithFrame:frame] autorelease];
 	[self addSubview: boardView];
 
-	debugView = [[[iDebugView alloc] initWithFrame:frame] autorelease];
-	[self addSubview: debugView];
+//	debugView = [[[iDebugView alloc] initWithFrame:frame] autorelease];
+//	[self addSubview: debugView];
 /*
 	float red[4] = {1,0,0,0.5};
 	CGRect buttonRect = CGRectMake(0.0f, 0.0f, 64.0f, 48.0f);
@@ -100,27 +108,37 @@
 	[playButton setBackgroundColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), green)];
 	[self addSubview: playButton];
 */
-
 	CGRect selectedRect = CGRectMake(0.0f, 0.0f, 68.0f, 34.0f);
 	selectedView = [[[UIImageView alloc] initWithFrame:selectedRect] autorelease];
 	UIImage* selectedImage = [[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"selected" ofType:@"png"]] retain];
 	[selectedView setImage:selectedImage];
 	[self addSubview: selectedView];
 
+	// Mask last/locked row.
+	float black[4] = {0,0,0,1};
+	CGRect bottomRect = CGRectMake(0.0f,frame.size.height-BLOCK_SIZE,frame.size.width,BLOCK_SIZE);
+	UIView* bottomRow = [[[UIView alloc] initWithFrame:bottomRect] autorelease];
+	[bottomRow setBackgroundColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), black)];
+	[bottomRow setAlpha:0.7f];
+	[self addSubview: bottomRow];
+
 	[self reset];
 	[self play];
+	[self feed];
+
 	return self;
 }
 
 - (void) play
 {
-    timer = [NSTimer
-        scheduledTimerWithTimeInterval:0.1
-        target: self
-        selector: @selector(update)
-        userInfo: nil
-        repeats: YES
-    ];
+	if (timer == nil)
+		timer = [NSTimer
+			scheduledTimerWithTimeInterval:0.1
+			target: self
+			selector: @selector(update)
+			userInfo: nil
+			repeats: YES
+		];
 }
 
 - (void) step
@@ -131,9 +149,47 @@
 	[(id)self update];
 }
 
+- (void) feed
+{
+	[self setFeedOffset:feedOffset+1.0];
+
+	[NSTimer
+		scheduledTimerWithTimeInterval:feedInterval
+		target: self
+		selector: @selector(feed)
+		userInfo: nil
+		repeats: NO
+	];
+}
+
+- (void) setFeedOffset:(float)offset
+{
+	feedOffset = offset;
+
+	CGPoint origin = [self origin];
+	origin.y = -feedOffset;
+	[self setOrigin:origin];
+}
+
 - (void) update
 {
 	int type = PPL_GetBlockType(selectedRow, selectedCol);
+
+	if (feedOffset > 32.0)
+	{
+		[self setFeedOffset:0.0];
+
+		PPL_Feed();
+
+		if (selectedRow > 0)
+		{
+			--selectedRow;
+
+			CGPoint selectedOrigin = [selectedView origin];
+			selectedOrigin.y = BLOCK_SIZE * selectedRow;
+			[selectedView setOrigin:selectedOrigin];
+		}
+	}
 
 	// Update dragging...
 	if (selectedRow >= 0 && selectedCol >= 0 && desiredCol >=0)
@@ -187,9 +243,10 @@
 - (CGPoint) getRelativeLocation:(GSEvent*)event
 {
 	CGPoint location = GSEventGetLocationInWindow(event);
-	CGRect frame = [self frame];
+	CGRect frame = [[self superview] frame];
 	location.x -= frame.origin.x;
 	location.y -= frame.origin.y - 16.0f;	// I'm not sure where this is coming from.
+	location.y += feedOffset;
 	return location;
 }
 
@@ -214,8 +271,10 @@
 	desiredCol = selectedCol;
 
 	CGPoint selectedOrigin;
-	selectedOrigin.x = BLOCK_SIZE * min(selectedCol, BOARD_COLS-2);
+	selectedOrigin.x = BLOCK_SIZE * selectedCol;
 	selectedOrigin.y = BLOCK_SIZE * selectedRow;
+	if (selectedCol > 2)
+		selectedOrigin.x -= BLOCK_SIZE;
 	[selectedView setOrigin:selectedOrigin];
 	[selectedView setAlpha:1.0f];
 }
@@ -336,15 +395,6 @@
 
 - (void) update
 {
-#if 1 //TEMP
-	NSArray* blocks = [self subviews];
-	int i = (BOARD_ROWS-1) * BOARD_COLS;
-	for (int col=0; col<BOARD_COLS; col++)
-	{
-		UIImageView* block = (UIImageView*)[blocks objectAtIndex:i++];
-		[block setImage:lockedImage];
-	}
-#else
 	NSArray* blocks = [self subviews];
 	for (int i=0, row=0; row<BOARD_ROWS; row++)
 	{
@@ -355,7 +405,6 @@
 				lockedImage : nil];
 		}
 	}
-#endif
 
 	[self setNeedsDisplay];
 }
@@ -401,7 +450,7 @@
 	[UIView endAnimations];
 
 	// Create character view
-	UIImageView* character = [[[UIImageView alloc] initWithFrame:CGRectMake(320.0f,0.0f,320.0f,480.0f)] autorelease];
+	UIImageView* character = [[[UIImageView alloc] initWithFrame:CGRectMake(320.0f,32.0f,320.0f,480.0f)] autorelease];
 	[character setImage:[[UIImage imageAtPath:[[NSBundle mainBundle] pathForResource:@"character" ofType:@"png"]] retain]];
 	[mainView addSubview: character];
 
@@ -409,40 +458,18 @@
 	[UIView beginAnimations:nil];
 	[UIView setAnimationDelay:0.5];
 	[UIView setAnimationDuration:2.0];
-	[character setFrame:CGRectMake(48,0,320,480)];
+	[character setFrame:CGRectMake(48,32,320,480)];
 	[UIView endAnimations];
 
-	CGRect mainRect = CGRectMake(12.0f,32.0f,BLOCK_SIZE*BOARD_COLS,BLOCK_SIZE*BOARD_ROWS);
+	// Make a frame for the board.
+	CGRect frameRect = CGRectMake(12.0f,32.0f,BLOCK_SIZE*BOARD_COLS,BLOCK_SIZE*(BOARD_ROWS-1));
+	UIView* frameView = [[[UIView alloc] initWithFrame:frameRect] autorelease];
+	[frameView setClipsSubviews:true];
+	[mainView addSubview: frameView];
 
-/*
-	// Create backgrounds
-	float backColor[4] = {0,0,0,0.5};
-	CGColorRef backgroundColor = CGColorCreate(CGColorSpaceCreateDeviceRGB(), backColor);
-
-	UIView* mainBack = [[[UIView alloc] initWithFrame:mainRect] autorelease];
-	[mainBack setBackgroundColor: backgroundColor];
-	[mainView addSubview: mainBack];
-
-	CGRect rightFrame = CGRectMake(223.0f, 132.0f, 64.0f, 128.0f);
-	UIView* enemyBack = [[[UIView alloc] initWithFrame:rightFrame] autorelease];
-	[enemyBack setBackgroundColor: backgroundColor];
-	[mainView addSubview: enemyBack];
-
-	rightFrame.origin.y = 276.0f;
-	rightFrame.size.height = 64.0f;
-	UIView* timeBack = [[[UIView alloc] initWithFrame:rightFrame] autorelease];
-	[timeBack setBackgroundColor: backgroundColor];
-	[mainView addSubview: timeBack];
-
-	rightFrame.origin.y = 356.0f;
-	rightFrame.size.height = 96.0f;
-	UIView* livesBack = [[[UIView alloc] initWithFrame:rightFrame] autorelease];
-	[livesBack setBackgroundColor: backgroundColor];
-	[mainView addSubview: livesBack];
-*/
 	// Create a playing board.
-	iBoard* board = [[[iBoard alloc] initWithFrame:mainRect] autorelease];
-	[mainView addSubview: board];
+	iBoard* board = [[[iBoard alloc] init] autorelease];
+	[frameView addSubview: board];
 }
 
 - (void)applicationWillSuspend
