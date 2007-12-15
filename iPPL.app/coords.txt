@@ -1,5 +1,0 @@
-main:16x,77y,192w,384h
-right:223x,64w
-enemy:132y,128h
-time:276y,64h
-lives:356y,96h
