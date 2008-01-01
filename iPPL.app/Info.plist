@@ -5,18 +5,16 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleExecutable</key>
-	<string>iPhonePuzzleLeague</string>
+	<string>jiggy</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.google.code.iPhonePuzzleLeague</string>
+	<string>com.aleiby.ippl</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleSignature</key>
-	<string>????</string>
+	<string></string>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
-	<key>SBUsesNetwork</key>
-	<integer>3</integer>
 </dict>
 </plist>

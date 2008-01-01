@@ -1,0 +1,1 @@
+{"description":"Match blocks and create chains to crush your opponents!","version":"0.1","author":"Aaron Leiby","url":"http://code.google.com/p/iphone-puzzle-league/"}
