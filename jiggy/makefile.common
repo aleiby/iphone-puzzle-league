@@ -1,0 +1,71 @@
+#------------------------------------------------------------------------------
+
+ifndef HEAVENLY
+$(error Please set the HEAVENLY environment variable)
+endif
+
+IPHONE_SYSLIB_ROOT=$(HEAVENLY)
+
+#------------------------------------------------------------------------------
+
+JSI=../Mac_OSX_Intel/jsi
+
+#------------------------------------------------------------------------------
+
+#This makes it easier to spot errors in the output
+
+CC=@echo "Compiling $<";arm-apple-darwin-g++
+LD=@echo "Linking $@";arm-apple-darwin-g++
+
+RM=rm -rf
+MD=mkdir -p
+CP=cp
+
+CFLAGS+= \
+	-g -O2 -Wall \
+	-DXP_UNIX \
+	-I../iPhone/js/include -I../iPhone/jiggy/include
+		
+LDFLAGS+= \
+	-dynamic \
+	-Wl,-syslibroot,$(IPHONE_SYSLIB_ROOT) \
+	-lobjc \
+	-ObjC \
+	-framework UIKit \
+	-framework CoreFoundation \
+	-framework Foundation \
+	-framework CoreGraphics \
+	-framework GraphicsServices \
+	-framework LayerKit \
+	-L../iPhone/js/lib -L../iPhone/jiggy/lib
+		
+
+#------------------------------------------------------------------------------
+
+JSI_GEN_TEMP_DIR=$(CURDIR)/jsi
+JSI_GEN_FILES=$(addprefix $(JSI_GEN_TEMP_DIR)/,$(addsuffix .mi, $(notdir $(JSI_CLASSES))))
+
+$(JSI_GEN_TEMP_DIR)/%.mi: $(CURDIR)/%.jsi 
+	@$(MD) $(JSI_GEN_TEMP_DIR)
+	@$(JSI) $< jsi/ 
+
+#------------------------------------------------------------------------------
+
+OBJECTS= \
+	$(patsubst %.c,%.o,$(filter %.c,$(SOURCES))) \
+	$(patsubst %.cc,%.o,$(filter %.cc,$(SOURCES))) \
+	$(patsubst %.cpp,%.o,$(filter %.cpp,$(SOURCES))) \
+	$(patsubst %.m,%.o,$(filter %.m,$(SOURCES))) \
+	$(patsubst %.mm,%.o,$(filter %.mm,$(SOURCES)))
+
+#------------------------------------------------------------------------------
+
+%.o: %.m
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+%.o: %.mm
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
