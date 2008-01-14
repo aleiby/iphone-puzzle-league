@@ -146,17 +146,21 @@ boardView.reset = function()
   this.selectedRow = this.selectedCol = this.desiredCol = undefined;
   this.selectedView.alpha = 0.0;
 }
+boardView.reset();
 
 // Feed support.
 boardView.setFeedOffset = function(offset)
 {
+  if (boardView.blocksFalling)
+    return;
+
   this.feedOffset = offset;
   this.origin = [this.origin.getX(),-this.feedOffset];
 }
 
 // Auto-feed support.
 boardView.feedOffset = 0.0;
-boardView.feedInterval = 0.15;
+boardView.feedInterval = 0.05;
 boardView.feedTimer = new Timer(0.0);
 boardView.feedTimer.onTimer = function(timer)
 {
@@ -174,7 +178,7 @@ boardView.timer.onTimer = function(timer)
   while (boardView.feedOffset >= BLOCK_SIZE)
   {
     boardView.setFeedOffset(boardView.feedOffset-BLOCK_SIZE);
-    iPPLcore.Feed();
+    iPPLcore.Feed();  //!!ARL: Return GameOver status?
     if (boardView.selectedRow > 0)
     {
       boardView.selectedRow -= 1;
@@ -182,6 +186,11 @@ boardView.timer.onTimer = function(timer)
         [boardView.selectedView.origin.getX(),
         boardView.selectedRow * BLOCK_SIZE];
     }
+
+    // GameOver if any blocks reach the top.
+    for (var col=0; col<BOARD_COLS; col++)
+      if (iPPLcore.GetBlockType(0,col))
+        boardView.GameOver();
   }
 
   // Update dragging...
@@ -206,10 +215,14 @@ boardView.timer.onTimer = function(timer)
   }
 
   // Animate blocks that will fall this update...
+  boardView.blocksFalling = false;
   for (var row=0; row<BOARD_ROWS; row++)
     for (var col=0; col<BOARD_COLS; col++)
       if (iPPLcore.IsFalling(row,col))
+      {
         boardView.blocksView.swapCol(col,row,row+1);
+        boardView.blocksFalling = true;
+      }
 
   // All the real magic happens here.
   iPPLcore.Update();
@@ -221,3 +234,33 @@ boardView.timer.onTimer = function(timer)
   boardView.blocksView.update();
 }
 boardView.timer.start();
+
+// Handle losing...
+boardView.GameOver = function()
+{
+  boardView.timer.stop();
+  boardView.feedTimer.stop();
+  
+  var redOut = new UIView(boardView.frame);
+  redOut.backgroundColor = [1,1,1,1];
+  boardView.addSubview(redOut);
+  boardView.bringSubviewToFront(redOut);
+  
+  UIViewAnimation.beginAnimations();
+  UIViewAnimation.setAnimationDuration(0.5);
+  UIViewAnimation.setAnimationCurve(2); //ease-out
+  redOut.backgroundColor = [0.8,0,0,0.5];
+  UIViewAnimation.endAnimations();
+  
+  var text = new UITextView([6,520,200,50], "Game Over!");
+  text.backgroundColor = [0,0,0,0];
+  text.textColor = [1,1,1,1];
+  text.textSize = 32;
+  boardView.addSubview(text);
+  boardView.bringSubviewToFront(text);
+  
+  UIViewAnimation.beginAnimations();
+  UIViewAnimation.setAnimationDuration(1.5);
+  text.origin = [6,120];
+  UIViewAnimation.endAnimations();
+}
