@@ -4,6 +4,12 @@
 Plugins.load("UIKit");
 Plugins.load("iPPLcore");
 
+Plugins.load("Invocation");
+var setStatusBarMode = new Invocation(this, "Application", "setStatusBarMode:duration:");
+setStatusBarMode.setArgumentInt(4,2);
+setStatusBarMode.setArgumentFloat(0.0,3);
+setStatusBarMode.Invoke();
+
 var window = new UIWindow(UIHardware.fullScreenApplicationContentRect);
 window.setHidden(false);
 window.orderFront();
@@ -177,8 +183,13 @@ boardView.timer.onTimer = function(timer)
   // Update feed...
   while (boardView.feedOffset >= BLOCK_SIZE)
   {
+    if (!iPPLcore.Feed())
+    {
+      boardView.GameOver();
+      return;
+    }
+
     boardView.setFeedOffset(boardView.feedOffset-BLOCK_SIZE);
-    iPPLcore.Feed();  //!!ARL: Return GameOver status?
     if (boardView.selectedRow > 0)
     {
       boardView.selectedRow -= 1;
@@ -186,11 +197,6 @@ boardView.timer.onTimer = function(timer)
         [boardView.selectedView.origin.getX(),
         boardView.selectedRow * BLOCK_SIZE];
     }
-
-    // GameOver if any blocks reach the top.
-    for (var col=0; col<BOARD_COLS; col++)
-      if (iPPLcore.GetBlockType(0,col))
-        boardView.GameOver();
   }
 
   // Update dragging...
@@ -249,7 +255,7 @@ boardView.GameOver = function()
   UIViewAnimation.beginAnimations();
   UIViewAnimation.setAnimationDuration(0.5);
   UIViewAnimation.setAnimationCurve(2); //ease-out
-  redOut.backgroundColor = [0.8,0,0,0.5];
+  redOut.backgroundColor = [0.8,0,0,0.3];
   UIViewAnimation.endAnimations();
   
   var text = new UITextView([6,520,200,50], "Game Over!");
@@ -261,6 +267,6 @@ boardView.GameOver = function()
   
   UIViewAnimation.beginAnimations();
   UIViewAnimation.setAnimationDuration(1.5);
-  text.origin = [6,120];
+  text.origin = [6,126];
   UIViewAnimation.endAnimations();
 }
