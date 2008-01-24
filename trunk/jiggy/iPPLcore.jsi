@@ -3,7 +3,7 @@ class iPPLcore
 {
 	void Init();
 	void Update();
-	void Feed();
+	bool Feed();
 	int GetBlockType(int row, int col);
 	bool IsLocked(int row, int col);
 	bool IsFalling(int row, int col);

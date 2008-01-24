@@ -16,9 +16,9 @@
 	PPL_Update();
 }
 
--(void)Feed
+-(bool)Feed
 {
-	PPL_Feed();
+	return PPL_Feed();
 }
 
 -(int)GetBlockType:(int)_row col:(int)_col
