@@ -167,17 +167,28 @@ void PPL_Update(void)
 	++ticks;
 }
 
-void PPL_Feed(void)
+int PPL_Feed(void)
 {
+	// Check for GameOver state (blocks about to be pushed off the top row).
+	for (int col = 0; col < BOARD_COLS; col++)
+		if (blocks[0][col] != eBlockType_Empty)
+			return 0;
+
+	// Unlock old bottom row.
 	for (int col = 0; col < BOARD_COLS; col++)
 		blocks[BOARD_ROWS-1][col] &= ~eBlockFlag_Locked;
 
+	// Move rows up one.
 	for (int row = 0; row < BOARD_ROWS-1; row++)
 		for (int col = 0; col < BOARD_COLS; col++)
 			blocks[row][col] = blocks[row+1][col];
 
+	// Fill in new bottom row and lock it.  (!!ARL: Make sure there are no matches.)
 	for (int col = 0; col < BOARD_COLS; col++)
 		blocks[BOARD_ROWS-1][col] = randRange(eBlockType_Empty+1, eBlockType_Max) | eBlockFlag_Locked;
+
+	// Success!
+	return 1;
 }
 
 int PPL_GetBlockType(int row, int col)
