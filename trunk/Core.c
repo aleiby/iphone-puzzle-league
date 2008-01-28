@@ -221,6 +221,12 @@ int PPL_IsFalling(int row, int col)
 	return 0;
 }
 
+int PPL_IsBreaking(int row, int col)
+{
+	int block = blocks[row][col];
+	return (block & eBlockFlag_MatchMask);
+}
+
 int PPL_MoveRight(int row, int col)
 {
 	if (col == BOARD_COLS-1)

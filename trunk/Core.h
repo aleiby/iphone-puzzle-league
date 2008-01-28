@@ -41,5 +41,6 @@ int		PPL_Feed			(void);
 int		PPL_GetBlockType	(int row, int column);
 int		PPL_IsLocked		(int row, int column);
 int		PPL_IsFalling		(int row, int column);
+int		PPL_IsBreaking		(int row, int column);
 int		PPL_MoveRight		(int row, int column);
 int		PPL_MoveLeft		(int row, int column);

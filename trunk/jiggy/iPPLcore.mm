@@ -21,29 +21,34 @@
 	return PPL_Feed();
 }
 
--(int)GetBlockType:(int)_row col:(int)_col
+-(int)GetBlockType:(int)row col:(int)col
 {
-	return PPL_GetBlockType(_row, _col);
+	return PPL_GetBlockType(row, col);
 }
 
--(bool)IsLocked:(int)_row col:(int)_col
+-(bool)IsLocked:(int)row col:(int)col
 {
-	return PPL_IsLocked(_row, _col);
+	return PPL_IsLocked(row, col);
 }
 
--(bool)IsFalling:(int)_row col:(int)_col
+-(bool)IsFalling:(int)row col:(int)col
 {
-	return PPL_IsFalling(_row, _col);
+	return PPL_IsFalling(row, col);
 }
 
--(bool)MoveRight:(int)_row col:(int)_col
+-(bool)IsBreaking:(int)row col:(int)col
 {
-	return PPL_MoveRight(_row, _col);
+	return PPL_IsBreaking(row, col);
 }
 
--(bool)MoveLeft:(int)_row col:(int)_col
+-(bool)MoveRight:(int)row col:(int)col
 {
-	return PPL_MoveLeft(_row, _col);
+	return PPL_MoveRight(row, col);
+}
+
+-(bool)MoveLeft:(int)row col:(int)col
+{
+	return PPL_MoveLeft(row, col);
 }
 
 #import "jsi/iPPLcore.mi"

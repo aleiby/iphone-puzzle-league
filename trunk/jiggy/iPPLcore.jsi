@@ -7,6 +7,7 @@ class iPPLcore
 	int GetBlockType(int row, int col);
 	bool IsLocked(int row, int col);
 	bool IsFalling(int row, int col);
+	bool IsBreaking(int row, int col);
 	bool MoveRight(int row, int col);
 	bool MoveLeft(int row, int col);
 }
