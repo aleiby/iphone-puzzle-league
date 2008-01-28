@@ -159,6 +159,9 @@ boardView.setFeedOffset = function(offset)
 {
   if (boardView.blocksFalling)
     return;
+    
+  if (boardView.blocksBreaking)
+    return;
 
   this.feedOffset = offset;
   this.origin = [this.origin.getX(),-this.feedOffset];
@@ -222,12 +225,17 @@ boardView.timer.onTimer = function(timer)
 
   // Animate blocks that will fall this update...
   boardView.blocksFalling = false;
+  boardView.blocksBreaking = false;
   for (var row=0; row<BOARD_ROWS; row++)
     for (var col=0; col<BOARD_COLS; col++)
       if (iPPLcore.IsFalling(row,col))
       {
         boardView.blocksView.swapCol(col,row,row+1);
         boardView.blocksFalling = true;
+      }
+      else if (iPPLcore.IsBreaking(row,col))
+      {
+        boardView.blocksBreaking = true;
       }
 
   // All the real magic happens here.
