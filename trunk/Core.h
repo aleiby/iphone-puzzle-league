@@ -16,15 +16,15 @@ enum EBlockType
 	eBlockType_Invalid = -1
 };
 
-#define MATCH_OFFSET		3
+#define MATCHING_OFFSET		3
 #define FALLING_OFFSET		8
 #define LOCKED_OFFSET		9
 
 enum EBlockFlag
 {
 	eBlockFlag_TypeMask		= (7),
-	eBlockFlag_MatchMask	= (15 << MATCH_OFFSET),
-	eBlockFlag_FallingMask	= (1 << FALLING_OFFSET),
+	eBlockFlag_Matching		= (15 << MATCHING_OFFSET),
+	eBlockFlag_Falling		= (1 << FALLING_OFFSET),
 	eBlockFlag_Locked		= (1 << LOCKED_OFFSET),
 };
 

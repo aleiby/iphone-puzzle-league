@@ -4,11 +4,12 @@
 Plugins.load("UIKit");
 Plugins.load("iPPLcore");
 
-Plugins.load("Invocation");
-var setStatusBarMode = new Invocation(this, "Application", "setStatusBarMode:duration:");
-setStatusBarMode.setArgumentInt(4,2);
-setStatusBarMode.setArgumentFloat(0.0,3);
-setStatusBarMode.Invoke();
+Application.setStatusBarMode(1,1,0,0);
+
+var settings = {
+  tickInterval: 0.1,
+  feedInterval: 0.07
+};
 
 var window = new UIWindow(UIHardware.fullScreenApplicationContentRect);
 window.setHidden(false);
@@ -20,6 +21,7 @@ var mainView = new UIView();
 window.setContentView(mainView);
 
 iPPLcore.Init();  //!!ARL: Pass in num cols, rows, types, etc.
+iPPLcore.Feed();
 
 // Some constants.
 var BLOCK_SIZE = 34;
@@ -79,8 +81,13 @@ boardView.blocksView.update = function()
 }
 
 // Some simple animation support.
-boardView.blocksView.swapBlocks = function(viewA,viewB)
+boardView.blocksView.swapRow = function(row,colA,colB)
 {
+  var views = this.subviews;
+
+  var viewA = views[row * BOARD_COLS + colA];
+  var viewB = views[row * BOARD_COLS + colB];
+
   var originA = viewA.origin;
   var originB = viewB.origin;
 
@@ -88,26 +95,32 @@ boardView.blocksView.swapBlocks = function(viewA,viewB)
   viewB.origin = originA;
   
   UIViewAnimation.beginAnimations()
-  UIViewAnimation.setAnimationDuration(0.1);
+  UIViewAnimation.setAnimationDuration(settings.tickInterval);
  
   viewA.origin = originA;
   viewB.origin = originB;
  
   UIViewAnimation.endAnimations();
 }
-boardView.blocksView.swapRow = function(row,colA,colB)
+boardView.blocksView.moveCol = function(col,rowA,rowB)
 {
   var views = this.subviews;
-  var viewA = views[row * BOARD_COLS + colA];
-  var viewB = views[row * BOARD_COLS + colB];
-  this.swapBlocks(viewA,viewB);
-}
-boardView.blocksView.swapCol = function(col,rowA,rowB)
-{
-  var views = this.subviews;
+
   var viewA = views[rowA * BOARD_COLS + col];
   var viewB = views[rowB * BOARD_COLS + col];
-  this.swapBlocks(viewA,viewB);
+
+  var originA = viewA.origin;
+  var originB = viewB.origin;
+
+  viewA.origin = originB;
+  
+  UIViewAnimation.beginAnimations()
+  UIViewAnimation.setAnimationDuration(settings.tickInterval);
+  UIViewAnimation.setAnimationCurve(3); // linear
+ 
+  viewA.origin = originA;
+ 
+  UIViewAnimation.endAnimations();
 }
 
 // Give the board a selector.
@@ -169,20 +182,17 @@ boardView.setFeedOffset = function(offset)
 
 // Auto-feed support.
 boardView.feedOffset = 0.0;
-boardView.feedInterval = 0.05;
 boardView.feedTimer = new Timer(0.0);
 boardView.feedTimer.onTimer = function(timer)
 {
   boardView.setFeedOffset(boardView.feedOffset+1.0);
 }
-boardView.feedTimer.start(boardView.feedInterval);
+boardView.feedTimer.start(settings.feedInterval);
 
 // Finally, some game logic.
-boardView.timer = new Timer(0.1);
+boardView.timer = new Timer(settings.tickInterval);
 boardView.timer.onTimer = function(timer)
 {
-  var type = boardView.GetSelectedType();
-
   // Update feed...
   while (boardView.feedOffset >= BLOCK_SIZE)
   {
@@ -202,10 +212,42 @@ boardView.timer.onTimer = function(timer)
     }
   }
 
+  // All the real magic happens here.
+  iPPLcore.Update();
+
+  // Animate blocks that fell this update...
+  boardView.blocksFalling = false;
+  boardView.blocksBreaking = false;
+  for (var row=0; row<BOARD_ROWS; row++)
+    for (var col=0; col<BOARD_COLS; col++)
+      if (iPPLcore.IsFalling(row,col))
+      {
+        boardView.blocksFalling = true;
+        boardView.blocksView.moveCol(col,row,row-1);
+      }
+      else if (iPPLcore.IsBreaking(row,col))
+      {
+        boardView.blocksBreaking = true;
+      }
+
   // Update dragging...
   if (boardView.selectedRow)
   {
-    if (boardView.desiredCol < boardView.selectedCol &&
+    // Auto-release if our selected block is breaking.
+    if (iPPLcore.IsBreaking(boardView.selectedRow, boardView.selectedCol))
+    {
+      boardView.reset();
+    }
+    // Update selection when falling.
+    else if (boardView.selectedRow < BOARD_ROWS-1 &&
+      iPPLcore.IsFalling(boardView.selectedRow+1,boardView.selectedCol))
+    {
+      ++boardView.selectedRow;
+      var origin = boardView.selectedView.origin;
+      boardView.selectedView.origin = [origin.getX(),origin.getY()+BLOCK_SIZE];
+    }
+    // Drag left.
+    else if (boardView.desiredCol < boardView.selectedCol &&
       iPPLcore.MoveLeft(boardView.selectedRow, boardView.selectedCol))
     {
       var from = boardView.selectedCol--;
@@ -213,6 +255,7 @@ boardView.timer.onTimer = function(timer)
       boardView.selectedView.origin = [Math.min(boardView.selectedCol,BOARD_COLS-2)*BLOCK_SIZE,
         boardView.selectedView.origin.getY()];
     }
+    // Drag right.
     else if (boardView.desiredCol > boardView.selectedCol &&
       iPPLcore.MoveRight(boardView.selectedRow, boardView.selectedCol))
     {
@@ -222,28 +265,6 @@ boardView.timer.onTimer = function(timer)
         boardView.selectedView.origin.getY()];
     }
   }
-
-  // Animate blocks that will fall this update...
-  boardView.blocksFalling = false;
-  boardView.blocksBreaking = false;
-  for (var row=0; row<BOARD_ROWS; row++)
-    for (var col=0; col<BOARD_COLS; col++)
-      if (iPPLcore.IsFalling(row,col))
-      {
-        boardView.blocksView.swapCol(col,row,row+1);
-        boardView.blocksFalling = true;
-      }
-      else if (iPPLcore.IsBreaking(row,col))
-      {
-        boardView.blocksBreaking = true;
-      }
-
-  // All the real magic happens here.
-  iPPLcore.Update();
-
-  // Release selection if type changes on us.
-  if (boardView.GetSelectedType() != type)
-    boardView.reset();
 
   boardView.blocksView.update();
 }
