@@ -36,11 +36,13 @@ enum EBlockFlag
 #define TICKS_PER_MATCH		8
 
 void	PPL_Init			(void);
+void	PPL_NewBoard		(void);
 void	PPL_Update			(void);
 int		PPL_Feed			(void);
-int		PPL_GetBlockType	(int row, int column);
-int		PPL_IsLocked		(int row, int column);
-int		PPL_IsFalling		(int row, int column);
-int		PPL_IsBreaking		(int row, int column);
-int		PPL_MoveRight		(int row, int column);
-int		PPL_MoveLeft		(int row, int column);
+void	PPL_SetBlockType	(int row, int col, int type);
+int		PPL_GetBlockType	(int row, int col);
+int		PPL_IsLocked		(int row, int col);
+int		PPL_IsFalling		(int row, int col);
+int		PPL_IsBreaking		(int row, int col);
+int		PPL_MoveRight		(int row, int col);
+int		PPL_MoveLeft		(int row, int col);

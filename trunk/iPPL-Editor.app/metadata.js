@@ -1,0 +1,1 @@
+{"description":"Editor for creating iPhone Puzzle League boards.","version":"0.1","author":"Aaron Leiby","url":"http://code.google.com/p/iphone-puzzle-league/"}
