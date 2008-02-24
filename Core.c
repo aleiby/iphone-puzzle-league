@@ -38,6 +38,15 @@ void PPL_Init()
 	gettimeofday(&t,0);
 	prev_rand = t.tv_sec;
 
+	// Clear out entire board.
+	for (int row = 0; row < BOARD_ROWS; row++)
+		for (int col = 0; col < BOARD_COLS; col++)
+			blocks[row][col] = eBlockType_Empty;
+}
+
+//!!ARL: Move this logic into javascript?
+void PPL_NewBoard()
+{
 	// Clear first half of board.
 	int filledRows = BOARD_ROWS / 2;
 	for (int row = 0; row < filledRows; row++)
@@ -49,9 +58,12 @@ void PPL_Init()
 		for (int col = 0; col < BOARD_COLS; col++)
 			blocks[row][col] = randRange(eBlockType_Empty, eBlockType_Special);
 
+	// Feed one line so we have a locked row on the bottom to start with.
+	PPL_Feed();
+
 	// Update until the blocks settle.
 	TRY_AGAIN:	PPL_Update();
-	for (int row = 0; row < BOARD_ROWS; row++)
+	for (int row = 0; row < BOARD_ROWS-1; row++)
 		for (int col = 0; col < BOARD_COLS; col++)
 			if (blocks[row][col] & ~eBlockFlag_TypeMask)
 				goto TRY_AGAIN;
@@ -187,6 +199,18 @@ int PPL_Feed(void)
 
 	// Success!
 	return 1;
+}
+
+void PPL_SetBlockType(int row, int col, int type)
+{
+	if (row < 0 || row >= BOARD_ROWS)
+		return;
+	if (col < 0 || col >= BOARD_COLS)
+		return;
+	if (type < 0 || type >= eBlockType_Max)
+		return;
+
+	blocks[row][col] = type;
 }
 
 int PPL_GetBlockType(int row, int col)

@@ -11,6 +11,11 @@
 	PPL_Init();
 }
 
+-(void)NewBoard
+{
+	PPL_NewBoard();
+}
+
 -(void)Update
 {
 	PPL_Update();
@@ -19,6 +24,11 @@
 -(bool)Feed
 {
 	return PPL_Feed();
+}
+
+-(void)SetBlockType:(int)row col:(int)col type:(int)type
+{
+	PPL_SetBlockType(row, col, type);
 }
 
 -(int)GetBlockType:(int)row col:(int)col

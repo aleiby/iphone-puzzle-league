@@ -21,7 +21,7 @@ var mainView = new UIView();
 window.setContentView(mainView);
 
 iPPLcore.Init();  //!!ARL: Pass in num cols, rows, types, etc.
-iPPLcore.Feed();
+iPPLcore.NewBoard();
 
 // Some constants.
 var BLOCK_SIZE = 34;
@@ -36,13 +36,13 @@ Array.prototype.getHeight = function() { return this[3]; }
 Array.prototype.getOrigin = function() { return this.split(0,2); }
 
 // Create a frame for the board.
-var frameView = new UIView([24,30,BLOCK_SIZE*BOARD_COLS,BLOCK_SIZE*(BOARD_ROWS-1)]);
+var boardWidth = BLOCK_SIZE*BOARD_COLS;
+var boardHeight = BLOCK_SIZE*BOARD_ROWS;
+var frameView = new UIView([24,30,boardWidth,boardHeight]);
 frameView.clipsSubviews = true;
 mainView.addSubview(frameView);
 
 // Create a playing board.
-var boardWidth = BLOCK_SIZE*BOARD_COLS;
-var boardHeight = BLOCK_SIZE*BOARD_ROWS;
 var boardView = new UIView([0,0,boardWidth,boardHeight]);
 frameView.addSubview(boardView);
 
@@ -177,11 +177,11 @@ boardView.setFeedOffset = function(offset)
     return;
 
   this.feedOffset = offset;
-  this.origin = [this.origin.getX(),-this.feedOffset];
+  this.origin = [this.origin.getX(),BLOCK_SIZE-this.feedOffset];
 }
+boardView.setFeedOffset(0.0);
 
 // Auto-feed support.
-boardView.feedOffset = 0.0;
 boardView.feedTimer = new Timer(0.0);
 boardView.feedTimer.onTimer = function(timer)
 {

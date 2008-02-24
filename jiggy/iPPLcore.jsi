@@ -2,8 +2,10 @@
 class iPPLcore
 {
 	void Init();
+	void NewBoard();
 	void Update();
 	bool Feed();
+	void SetBlockType(int row, int col, int type);
 	int GetBlockType(int row, int col);
 	bool IsLocked(int row, int col);
 	bool IsFalling(int row, int col);
