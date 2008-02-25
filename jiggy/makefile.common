@@ -8,7 +8,7 @@ IPHONE_SYSLIB_ROOT=$(HEAVENLY)
 
 #------------------------------------------------------------------------------
 
-JSI=../Mac_OSX_Intel/jsi
+JSI=../jsi/jsi
 
 #------------------------------------------------------------------------------
 
@@ -24,7 +24,7 @@ CP=cp
 CFLAGS+= \
 	-g -O2 -Wall \
 	-DXP_UNIX \
-	-I../iPhone/js/include -I../iPhone/jiggy/include
+	-I../js/include -I../jiggy/include
 		
 LDFLAGS+= \
 	-dynamic \
@@ -37,7 +37,8 @@ LDFLAGS+= \
 	-framework CoreGraphics \
 	-framework GraphicsServices \
 	-framework LayerKit \
-	-L../iPhone/js/lib -L../iPhone/jiggy/lib
+	-L/usr/local/lib \
+	-L../js/lib -L../jiggy/lib
 		
 
 #------------------------------------------------------------------------------
