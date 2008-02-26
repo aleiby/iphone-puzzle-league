@@ -2,15 +2,26 @@
 // /Applications/iPPL Editor.app/main.js
 
 Plugins.load("UIKit");
+include("jiggy.magic.js");
 
 var window = new UIWindow(UIHardware.fullScreenApplicationContentRect);
 window.setHidden(false);
 window.orderFront();
 window.makeKey();
-window.backgroundColor = [0,0,0,0.5];
+window.backgroundColor = [1,1,1,1];
 
 var mainView = new UIView();
 window.setContentView(mainView);
+
+// Add a navigation bar.
+var navBar = new UINavigationBar([0,0,window.bounds[2],UINavigationBar.defaultHeight]);
+navBar.disableAnimation();
+mainView.addSubview(navBar);
+
+// Add a transition view.
+var transitionView = new UITransitionView([0,navBar.bounds[3],window.bounds[2],
+  window.bounds[3] - navBar.bounds[3] ]);
+mainView.addSubview(transitionView);
 
 // Some constants.
 var BLOCK_SIZE = 34;
@@ -20,8 +31,9 @@ var BOARD_ROWS = 12;
 // Create a playing board.
 var boardWidth = BLOCK_SIZE*BOARD_COLS;
 var boardHeight = BLOCK_SIZE*BOARD_ROWS;
-var boardView = new UIView([24,30,boardWidth,boardHeight]);
-mainView.addSubview(boardView);
+var boardView = new UIView([transitionView.bounds[2]/2 - boardWidth/2,
+  transitionView.bounds[3]/2 - boardHeight/2,boardWidth,boardHeight]);
+boardView.backgroundColor = [0,0,0,0.7];
 
 // Load up the images for all of our blocks.
 var imageNames = [];
@@ -47,7 +59,7 @@ boardView.addSubview(boardView.blocksView);
 boardView.radialMenu = new UIView();
 for each (var image in images)
 {
-  if (image != images.empty)
+  if (image !== images.empty)
   {
     var block = new UIImageView(image);
     boardView.radialMenu.addSubview(block);
@@ -72,46 +84,54 @@ boardView.radialMenu.show = function(row,col)
     block.origin = [0,0];
   }
 
-  // Fan out evenly.
+  // Fan out in a stack.
   UIViewAnimation.beginAnimations();
   UIViewAnimation.setAnimationDuration(0.3);
+
+  var origin = [0,0];
+  var dy = BLOCK_SIZE * 0.7;
+  var dx = 3.0;
+  var ddx = 2.0;
+
+  // Flip direction to fit on screen.
+  if (row > 3)
+    dy = -dy;
+  else
+  {
+    dx = -dx;
+    ddx = -ddx;
+  }
+
   for (var i=0; i<blocks.length; i++)
   {
-    with (Math)
-    {
-       var theta = i / blocks.length * 2*PI;
-       var r = 1.5*BLOCK_SIZE;
-       var x = r*sin(theta);
-       var y = r*cos(theta);
+    origin[0] += dx;
+    origin[1] += dy;
+    dx += ddx;
 
-       blocks[i].origin = [x,y];
-    }
+    blocks[i].origin = origin;
   }
+
   UIViewAnimation.endAnimations();
 }
 boardView.radialMenu.select = function(loc)
 {
-  var dx = loc[0] - (this.origin[0] + BLOCK_SIZE/2);
-  var dy = loc[1] - (this.origin[1] + BLOCK_SIZE/2);
+  var x = loc[0] - this.origin[0];
+  var y = loc[1] - this.origin[1];
 
-  with (Math)
+  var image = images.empty;
+  var blocks = this.subviews;
+  for (var i=0; i<blocks.length; i++)
   {
-    var r = sqrt(dx*dx + dy*dy);
-    if (r < BLOCK_SIZE)
+    var frame = blocks[i].frame;
+    if (x >= frame[0] && y >= frame[1]
+      && x <= frame[0]+frame[2]
+      && y <= frame[1]+frame[3])
     {
-      this.set(images.empty);
-      return;
+      var name = imageNames[i+1];
+      image = images[name];
     }
-    var blocks = this.subviews;
-    var theta = atan2(dx/r, dy/r);
-    theta += PI / blocks.length; // pull back half a segment
-    while (theta < 0) // normalize 0 to 360
-      theta += 2*PI;
-    var i = parseInt(theta / (2*PI) * blocks.length);
-    var name = imageNames[i+1];
-    var image = images[name];
-    this.set(image);
   }
+  this.set(image);
 }
 boardView.radialMenu.hide = function()
 {
@@ -138,3 +158,35 @@ boardView.onMouseUp = function(event)
 {
   boardView.radialMenu.hide();
 }
+
+// Placeholder boards list.
+var boardList = new UIView([0,0,320,480]);
+boardList.backgroundColor = [0,1,0,1];
+
+var boardTitle = new UINavigationItem("Boards");
+navBar.pushNavigationItem(boardTitle);
+
+// Start with the Board view active.
+transitionView.transition(UITransitionView.styles.immediate, boardView);
+
+var navItem = new UINavigationItem("Untitled");
+navBar.pushNavigationItem(navItem);
+navBar.showButtonsWithLeftTitle("Boards","Save",1);
+navBar.enableAnimation();
+
+// Handle navigation bar button events.
+navBar.onButtonClicked = function(bar,button)
+{
+  switch (button)
+  {
+    case UINavigationBar.buttons.right:
+      break;
+    case UINavigationBar.buttons.left:
+      transitionView.transitionFrom(UITransitionView.styles.shiftRight,
+        boardView, boardList);
+      navBar.popNavigationItem();
+      navBar.hideButtons();
+      break;
+  }
+}
+
