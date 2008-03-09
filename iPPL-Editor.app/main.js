@@ -3,7 +3,9 @@
 
 Plugins.load("UIKit");
 Plugins.load("FileManager");
+
 include("jiggy.magic.js");
+include("json2.js");
 
 var basePath = Application.userLibraryDirectory+"/iPPL";
 var boardsPath = basePath+"/Boards";
@@ -79,17 +81,21 @@ for each (var image in images)
     boardView.radialMenu.addSubview(block);
   }
 }
-boardView.radialMenu.set = function(image)
+boardView.radialMenu.set = function(name)
 {
+  var image = images[name];
   if (this.selected && this.selected.image != image)
+  {
     this.selected.setImage(image);
+    this.selected.imageName = name;
+  }
 }
 boardView.radialMenu.show = function(row,col)
 {
   boardView.addSubview(boardView.radialMenu);
   this.origin = [col*BLOCK_SIZE,row*BLOCK_SIZE];
   this.selected = boardView.blocksView.subviews[row*BOARD_COLS+col];
-  this.set(images.empty);
+  this.set("empty");
 
   // Start in the middle.
   var blocks = this.subviews;
@@ -108,7 +114,7 @@ boardView.radialMenu.show = function(row,col)
   var ddx = 2.0;
 
   // Flip direction to fit on screen.
-  if (row > 3)
+  if (row > 4)
     dy = -dy;
   else
   {
@@ -132,7 +138,7 @@ boardView.radialMenu.select = function(loc)
   var x = loc[0] - this.origin[0];
   var y = loc[1] - this.origin[1];
 
-  var image = images.empty;
+  var imageName = "empty";
   var blocks = this.subviews;
   for (var i=0; i<blocks.length; i++)
   {
@@ -141,11 +147,10 @@ boardView.radialMenu.select = function(loc)
       && x <= frame[0]+frame[2]
       && y <= frame[1]+frame[3])
     {
-      var name = imageNames[i+1];
-      image = images[name];
+      imageName = imageNames[i+1];
     }
   }
-  this.set(image);
+  this.set(imageName);
 }
 boardView.radialMenu.hide = function()
 {
@@ -175,25 +180,71 @@ boardView.onMouseUp = function(event)
 
 boardView.onSave = function(filename)
 {
-  if (filename != "")
+  if (!filename)
   {
-    if (!FileManager.directoryExists(basePath)
-      &&!FileManager.createDirectory(basePath))
-    {
-      alert("Failed to create directory:\n"+ basePath);
-      return;
-    }
-    if (!FileManager.directoryExists(boardsPath)
-      &&!FileManager.createDirectory(boardsPath))
-    {
-      alert("Failed to create directory:\n"+boardsPath);
-      return;
-    }
-
-    var data = new Data();
-    data.loadFromString("testing...");
-    data.writeToFile(boardsPath+"/"+filename+boardsExt);
+    alert("No filename specified!");
+    return;
   }
+  if (!FileManager.directoryExists(basePath)
+    &&!FileManager.createDirectory(basePath))
+  {
+    alert("Failed to create directory:\n"+ basePath);
+    return;
+  }
+  if (!FileManager.directoryExists(boardsPath)
+    &&!FileManager.createDirectory(boardsPath))
+  {
+    alert("Failed to create directory:\n"+boardsPath);
+    return;
+  }
+
+  var board_data = [];
+  var blocks = boardView.blocksView.subviews;
+  for (var row=0; row<BOARD_ROWS; row++)
+  {
+    var row_data = [];
+    for (var col=0; col<BOARD_COLS; col++)
+    {
+      var i = row*BOARD_COLS + col;
+      var name = blocks[i].imageName;
+      row_data.push(name?name:"empty");
+    }
+    board_data.push(row_data);
+  }
+
+  var data = new Data();
+  data.loadFromString(JSON.stringify(board_data));
+  data.writeToFile(boardsPath+"/"+filename+boardsExt);
+
+  navItem.title = filename;
+}
+
+boardView.onLoad = function(filename)
+{
+  var path = boardsPath+"/"+filename+boardsExt;
+  if (!FileManager.fileExists(path))
+    return false;
+
+  var data = new Data();
+  data.loadFromFile(path);
+  var board_data = JSON.parse(data.asString());
+  var blocks = boardView.blocksView.subviews;
+  for (var row=0; row<BOARD_ROWS; row++)
+  {
+    var row_data = board_data[row];
+    for (var col=0; col<BOARD_COLS; col++)
+    {
+      var i = row*BOARD_COLS + col;
+      var name = row_data[col];
+      var image = images[name];
+
+      var block = blocks[i];
+      block.imageName = name;
+      block.setImage(image);
+    }
+  }
+
+  return true;
 }
 
 // Save screen for inputing name of board.
@@ -215,8 +266,21 @@ keyboard.setDefaultReturnKeyType(3);
 keyboard.showPreferredLayout();
 saveView.addSubview(keyboard);
 
+//!!ARL: Recreate board list on demand (so newly saved files show up).
+// (free when no longer in use)
+
 // Placeholder list of boards.
-var boardPaths = ["red","blue","green","/var/mobile/Library/iPPL/Boards/TestSingleFrameForce"];
+var boardPaths = [];
+if (FileManager.directoryExists(boardsPath))
+{
+  var contents = FileManager.directoryContents(boardsPath);
+  for (var i=0; i<contents.length; i++)
+  {
+    var path = contents[i].path;
+    var n = path.lastIndexOf('.');
+    boardPaths.push(path.slice(0,n));
+  }
+}
 
 // List of boards to load.
 var table = new UITable([0,UINavigationBar.defaultHeight,
@@ -250,13 +314,21 @@ table.onGetCell = function(tbl,col,row)
 
 table.onCanSelectRow = function(tbl,row)
 {
-  return true;
+  var filename = boardPaths[row];
+  return FileManager.fileExists(boardsPath+"/"+filename+boardsExt);
 }
 
 table.onRowSelected = function(tbl,row)
 {
+  var filename = boardPaths[row];
+  if (!boardView.onLoad(filename))
+  {
+    alert("Failed to load: "+filename);
+    return;
+  }
+
   transitionView.transition(UITransitionView.styles. shiftLeft, editorView);
-  navItem.title = boardPaths[row];
+  navItem.title = filename;
   navBar.pushNavigationItem(navItem);
   navBar.showButtonsWithLeftTitle("Boards","Save",1);
 }
@@ -295,7 +367,7 @@ navBar.onButtonClicked = function(bar,button)
         break;
       }
 
-      nameField.text = navItem.title;
+      nameField.text = (navItem.title!="Untitled")?navItem.title:"";
       transitionView.transition(UITransitionView.styles.shiftUp, saveView);
       navBar.pushNavigationItem(emptyItem);
       navBar.showButtonsWithStyle(
