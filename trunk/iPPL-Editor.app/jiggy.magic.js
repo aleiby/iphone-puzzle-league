@@ -150,7 +150,10 @@ if (typeof(UITextField) !== "undefined") {
   };
   
   UITextField.ellipsisStyles = {
-    // Could not find docs
+    none : 0,
+    showEnd : 1,
+    showStart : 2,
+    showBoth : 3
   };
 }
 
@@ -261,7 +264,8 @@ if (typeof(Font) !== "undefined") {
 
 if (typeof(UITableCell) !== "undefined") {
   UITableCell.separatorStyles = {
-    // No docs
+    none : 0,
+    singleLine : 1
   };
   UITableCell.selectionStyles = {
     brightBlue : 0,

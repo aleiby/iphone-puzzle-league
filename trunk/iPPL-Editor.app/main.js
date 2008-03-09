@@ -18,6 +18,8 @@ var navBar = new UINavigationBar([0,0,window.bounds[2],UINavigationBar.defaultHe
 navBar.disableAnimation();
 mainView.addSubview(navBar);
 
+var navItem = new UINavigationItem();
+
 // Add a transition view.
 var transitionView = new UITransitionView([0,navBar.bounds[3],window.bounds[2],
   window.bounds[3] - navBar.bounds[3] ]);
@@ -34,6 +36,9 @@ var boardHeight = BLOCK_SIZE*BOARD_ROWS;
 var boardView = new UIView([transitionView.bounds[2]/2 - boardWidth/2,
   transitionView.bounds[3]/2 - boardHeight/2,boardWidth,boardHeight]);
 boardView.backgroundColor = [0,0,0,0.7];
+
+var editorView = new UIView(transitionView.bounds);
+editorView.addSubview(boardView);
 
 // Load up the images for all of our blocks.
 var imageNames = [];
@@ -159,17 +164,60 @@ boardView.onMouseUp = function(event)
   boardView.radialMenu.hide();
 }
 
-// Placeholder boards list.
-var boardList = new UIView([0,0,320,480]);
-boardList.backgroundColor = [0,1,0,1];
+// Placeholder list of boards.
+var boardPaths = ["red","blue","green","/var/mobile/Library/iPPL/Boards/TestSingleFrameForce"];
+
+// List of boards to load.
+var table = new UITable([0,UINavigationBar.defaultHeight,
+  320,480-UINavigationBar.defaultHeight]);
+table.rowHeight = 40;
+
+var cells = [];
+for (var i=0; i<boardPaths.length; i++)
+{
+  var cell = new UITableCell([0,0,table.bounds[2],table.rowHeight]);
+  var label = new UITextLabel([20,0,table.bounds[2]-40,table.rowHeight]);
+  label.text = boardPaths[i];
+  label.backgroundColor = [0,0,0,0];
+  label.setEllipsisStyle(UITextField.ellipsisStyles.showEnd);
+  cell.addSubview(label);
+  cells.push(cell);
+}
+
+table.separatorStyle = UITableCell.separatorStyles.singleLine;
+table.addTableColumn(new UITableColumn("column","column",table.bounds[2]));
+
+table.onGetNumberOfRows = function(tbl)
+{
+  return cells.length;
+}
+
+table.onGetCell = function(tbl,col,row)
+{
+  return cells[row];
+}
+
+table.onCanSelectRow = function(tbl,row)
+{
+  return true;
+}
+
+table.onRowSelected = function(tbl,row)
+{
+  transitionView.transition(UITransitionView.styles. shiftLeft, editorView);
+  navItem.title = boardPaths[row];
+  navBar.pushNavigationItem(navItem);
+  navBar.showButtonsWithLeftTitle("Boards","Save",1);
+}
 
 var boardTitle = new UINavigationItem("Boards");
 navBar.pushNavigationItem(boardTitle);
 
 // Start with the Board view active.
-transitionView.transition(UITransitionView.styles.immediate, boardView);
+//!!ARL: Auto-select "new" board option instead.
+transitionView.transition(UITransitionView.styles.immediate, editorView);
 
-var navItem = new UINavigationItem("Untitled");
+navItem.title = "Untitled";
 navBar.pushNavigationItem(navItem);
 navBar.showButtonsWithLeftTitle("Boards","Save",1);
 navBar.enableAnimation();
@@ -182,10 +230,10 @@ navBar.onButtonClicked = function(bar,button)
     case UINavigationBar.buttons.right:
       break;
     case UINavigationBar.buttons.left:
-      transitionView.transitionFrom(UITransitionView.styles.shiftRight,
-        boardView, boardList);
+      transitionView.transition(UITransitionView.styles.shiftRight, table);
       navBar.popNavigationItem();
       navBar.hideButtons();
+      table.reloadData();
       break;
   }
 }
