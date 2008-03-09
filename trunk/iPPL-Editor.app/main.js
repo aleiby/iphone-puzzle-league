@@ -2,7 +2,12 @@
 // /Applications/iPPL Editor.app/main.js
 
 Plugins.load("UIKit");
+Plugins.load("FileManager");
 include("jiggy.magic.js");
+
+var basePath = Application.userLibraryDirectory+"/iPPL";
+var boardsPath = basePath+"/Boards";
+var boardsExt = ".ppl";
 
 var window = new UIWindow(UIHardware.fullScreenApplicationContentRect);
 window.setHidden(false);
@@ -19,6 +24,10 @@ navBar.disableAnimation();
 mainView.addSubview(navBar);
 
 var navItem = new UINavigationItem();
+var emptyItem = new UINavigationItem();
+var saving = false;
+var editing = false;
+var browsing = false;
 
 // Add a transition view.
 var transitionView = new UITransitionView([0,navBar.bounds[3],window.bounds[2],
@@ -164,6 +173,48 @@ boardView.onMouseUp = function(event)
   boardView.radialMenu.hide();
 }
 
+boardView.onSave = function(filename)
+{
+  if (filename != "")
+  {
+    if (!FileManager.directoryExists(basePath)
+      &&!FileManager.createDirectory(basePath))
+    {
+      alert("Failed to create directory:\n"+ basePath);
+      return;
+    }
+    if (!FileManager.directoryExists(boardsPath)
+      &&!FileManager.createDirectory(boardsPath))
+    {
+      alert("Failed to create directory:\n"+boardsPath);
+      return;
+    }
+
+    var data = new Data();
+    data.loadFromString("testing...");
+    data.writeToFile(boardsPath+"/"+filename+boardsExt);
+  }
+}
+
+// Save screen for inputing name of board.
+var saveView = new UIView(transitionView.bounds);
+saveView.backgroundColor = [0.5,0.5,0.5,1];
+var nameField = new UITextField([0,0,320,30]);
+nameField.setBorderStyle(UITextField.borderStyles.rounded);
+nameField.setClearButtonStyle(UITextField.viewModes.whileEditing);
+nameField.setVerticallyCenterText(true);
+nameField.setAutoresizesTextToFit(true);
+nameField.placeholder = "Enter filename";
+saveView.addSubview(nameField);
+
+//!!ARL: Autogenerate an icon by take a screenshot of the bounds of the board.
+
+var keyboard = new UIKeyboard("");
+keyboard.preferredKeyboardType = 0;
+keyboard.setDefaultReturnKeyType(3);
+keyboard.showPreferredLayout();
+saveView.addSubview(keyboard);
+
 // Placeholder list of boards.
 var boardPaths = ["red","blue","green","/var/mobile/Library/iPPL/Boards/TestSingleFrameForce"];
 
@@ -222,14 +273,47 @@ navBar.pushNavigationItem(navItem);
 navBar.showButtonsWithLeftTitle("Boards","Save",1);
 navBar.enableAnimation();
 
+function DismissSaveView()
+{
+  transitionView.transition(UITransitionView.styles.shiftDown, editorView);
+  navBar.popNavigationItem();
+  navBar.showButtonsWithLeftTitle("Boards","Save",1);
+  saving = false;
+}
+
 // Handle navigation bar button events.
 navBar.onButtonClicked = function(bar,button)
 {
   switch (button)
   {
     case UINavigationBar.buttons.right:
+
+      if (saving)
+      {
+        boardView.onSave(nameField.text);
+        DismissSaveView();
+        break;
+      }
+
+      nameField.text = navItem.title;
+      transitionView.transition(UITransitionView.styles.shiftUp, saveView);
+      navBar.pushNavigationItem(emptyItem);
+      navBar.showButtonsWithStyle(
+        "Cancel",UINavigationBar.buttonStyles.normal,
+        "Save",UINavigationBar.buttonStyles.normal);
+      keyboard.activate();
+      //nameField.becomeFirstResponder();
+      saving = true;
       break;
+
     case UINavigationBar.buttons.left:
+
+      if (saving)
+      {
+        DismissSaveView();
+        break;
+      }
+
       transitionView.transition(UITransitionView.styles.shiftRight, table);
       navBar.popNavigationItem();
       navBar.hideButtons();

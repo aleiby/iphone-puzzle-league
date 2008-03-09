@@ -126,11 +126,12 @@ if (typeof(UINavigationBar) !== "undefined") {
 }
 
 
-// Guessing based on cocoa bezel styles
 if (typeof(UITextField) !== "undefined") {
   UITextField.borderStyles = {
-    square : 0,
-    rounded : 1
+    none : 0,
+    line : 1,
+    bezel : 2,
+    rounded : 3
   };
   UITextField.buttonStyles = {
     roundedBezel           : 1,
@@ -148,7 +149,11 @@ if (typeof(UITextField) !== "undefined") {
     recessedBezel          : 13,
     roundedDisclosureBezel : 14   
   };
-  
+  UITextField.viewModes = {
+    never : 0,
+    whileEditing : 1,
+    always : 2
+  };
   UITextField.ellipsisStyles = {
     none : 0,
     showEnd : 1,
