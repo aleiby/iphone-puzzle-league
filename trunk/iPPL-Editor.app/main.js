@@ -28,8 +28,8 @@ mainView.addSubview(navBar);
 var navItem = new UINavigationItem();
 var emptyItem = new UINavigationItem();
 var saving = false;
-var editing = false;
 var browsing = false;
+var editing = false;
 
 // Add a transition view.
 var transitionView = new UITransitionView([0,navBar.bounds[3],window.bounds[2],
@@ -178,6 +178,17 @@ boardView.onMouseUp = function(event)
   boardView.radialMenu.hide();
 }
 
+boardView.onNew = function()
+{
+  var blocks = boardView.blocksView.subviews;
+  for (var i=0; i<blocks.length; i++)
+  {
+    var block = blocks[i];
+    block.setImage(images.empty);
+    block.imageName = "empty";
+  }
+}
+
 boardView.onSave = function(filename)
 {
   if (!filename)
@@ -214,7 +225,12 @@ boardView.onSave = function(filename)
 
   var data = new Data();
   data.loadFromString(JSON.stringify(board_data));
-  data.writeToFile(boardsPath+"/"+filename+boardsExt);
+  var path = boardsPath+"/"+filename+boardsExt;
+  if (!data.writeToFile(path))
+  {
+    alert("Failed to save file!\n"+path);
+    return;
+  }
 
   navItem.title = filename;
 }
@@ -320,6 +336,9 @@ table.onCanSelectRow = function(tbl,row)
 
 table.onRowSelected = function(tbl,row)
 {
+  if (editing)
+    return;
+
   var filename = boardPaths[row];
   if (!boardView.onLoad(filename))
   {
@@ -331,13 +350,32 @@ table.onRowSelected = function(tbl,row)
   navItem.title = filename;
   navBar.pushNavigationItem(navItem);
   navBar.showButtonsWithLeftTitle("Boards","Save",1);
+  browsing = false;
+}
+
+table.onCanDeleteRow = function(tbl,row)
+{
+  return editing;
+}
+
+table.onRowDeleted = function(tbl,row)
+{
+  var filename = boardPaths[row];
+  var path = boardsPath+"/"+filename+boardsExt;
+  if (!FileManager.remove(path))
+  {
+    alert("Failed to delete file:\n"+path);
+  }
+
+  cells.splice(row,1);
+  DoneEditing();
 }
 
 var boardTitle = new UINavigationItem("Boards");
 navBar.pushNavigationItem(boardTitle);
 
 // Start with the Board view active.
-//!!ARL: Auto-select "new" board option instead.
+//!!ARL: Auto-select "new" board option instead (still needs to be immediate - no animation).
 transitionView.transition(UITransitionView.styles.immediate, editorView);
 
 navItem.title = "Untitled";
@@ -353,6 +391,24 @@ function DismissSaveView()
   saving = false;
 }
 
+function DoneEditing()
+{
+  navBar.showButtonsWithStyle(
+    "Edit",UINavigationBar.buttonStyles.normal,
+    "New",UINavigationBar.buttonStyles.normal);
+
+  for (var i=0; i<cells.length; i++)
+  {
+    var cell = cells[i];
+    //!!ARL: Should probably animate this movement.
+    cell.subviews[0].frame = [20,0,table.bounds[2]-40,table.rowHeight];
+    cell.showDeleteOrInsertion(false,false,false,true,false);
+  }
+
+  editing = false;
+  browsing = true;
+}
+
 // Handle navigation bar button events.
 navBar.onButtonClicked = function(bar,button)
 {
@@ -360,10 +416,24 @@ navBar.onButtonClicked = function(bar,button)
   {
     case UINavigationBar.buttons.right:
 
+      // User confirmed 'Save' button.
       if (saving)
       {
         boardView.onSave(nameField.text);
         DismissSaveView();
+        break;
+      }
+      
+      // User selected 'New' button.
+      if (browsing)
+      {
+        boardView.onNew();
+        transitionView.transition(UITransitionView.styles.shiftLeft, editorView);
+
+        navItem.title = "Untitled";
+        navBar.pushNavigationItem(navItem);
+        navBar.showButtonsWithLeftTitle("Boards","Save",1);
+        browsing = false;
         break;
       }
 
@@ -372,7 +442,7 @@ navBar.onButtonClicked = function(bar,button)
       navBar.pushNavigationItem(emptyItem);
       navBar.showButtonsWithStyle(
         "Cancel",UINavigationBar.buttonStyles.normal,
-        "Save",UINavigationBar.buttonStyles.normal);
+        "Save",UINavigationBar.buttonStyles.blue);
       keyboard.activate();
       //nameField.becomeFirstResponder();
       saving = true;
@@ -380,16 +450,48 @@ navBar.onButtonClicked = function(bar,button)
 
     case UINavigationBar.buttons.left:
 
+      // User hit 'Cancel'.
       if (saving)
       {
         DismissSaveView();
         break;
       }
 
+      // User hit 'Edit'.
+      if (browsing)
+      {
+        navBar.showButtonsWithStyle(
+          "Done",UINavigationBar.buttonStyles.blue,
+          null,UINavigationBar.buttonStyles.normal);
+          
+        for (var i=0; i<cells.length; i++)
+        {
+          var cell = cells[i];
+          //!!ARL: Should probably animate this movement.
+          cell.subviews[0].frame = [40,0,table.bounds[2]-40,table.rowHeight];
+          cell.showDeleteOrInsertion(true,false,false,true,false);
+        }
+
+        browsing = false;
+        editing = true;
+        break;
+      }
+
+      // User hit 'Done'.
+      if (editing)
+      {
+        DoneEditing();
+        break;
+      }
+
+      // User hit 'Boards' from Editor view.
       transitionView.transition(UITransitionView.styles.shiftRight, table);
       navBar.popNavigationItem();
-      navBar.hideButtons();
+      navBar.showButtonsWithStyle(
+        "Edit",UINavigationBar.buttonStyles.normal,
+        "New",UINavigationBar.buttonStyles.normal);
       table.reloadData();
+      browsing = true;
       break;
   }
 }
