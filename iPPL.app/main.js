@@ -122,6 +122,19 @@ boardView.blocksView.moveCol = function(col,rowA,rowB)
  
   UIViewAnimation.endAnimations();
 }
+boardView.blocksView.flash = function(row,col)
+{
+  var view = this.subviews[row * BOARD_COLS + col];
+  
+  view.alpha = 0.0;
+
+  UIViewAnimation.beginAnimations()
+  UIViewAnimation.setAnimationDuration(settings.tickInterval);
+  
+  view.alpha = 1.0;
+  
+  UIViewAnimation.endAnimations();
+}
 
 // Give the board a selector.
 boardView.selectedView = new UIImageView(new Image("res/selected.png"));
@@ -215,7 +228,7 @@ boardView.timer.onTimer = function(timer)
   // All the real magic happens here.
   iPPLcore.Update();
 
-  // Animate blocks that fell this update...
+  // Animate blocks that fell/broke this update...
   boardView.blocksFalling = false;
   boardView.blocksBreaking = false;
   for (var row=0; row<BOARD_ROWS; row++)
@@ -228,6 +241,7 @@ boardView.timer.onTimer = function(timer)
       else if (iPPLcore.IsBreaking(row,col))
       {
         boardView.blocksBreaking = true;
+        boardView.blocksView.flash(row,col);
       }
 
   // Update dragging...

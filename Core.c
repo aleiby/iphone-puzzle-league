@@ -220,10 +220,6 @@ int PPL_GetBlockType(int row, int col)
 	if (col < 0 || col >= BOARD_COLS)
 		return eBlockType_Invalid;
 
-	// Blink when matched.
-	if (blocks[row][col] & (1 << MATCHING_OFFSET))
-		return eBlockType_Empty;
-
 	return (blocks[row][col] & eBlockFlag_TypeMask);
 }
 

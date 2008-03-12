@@ -1,0 +1,1 @@
+{"description":"Test harness for iPhone Puzzle League.","version":"1.0","author":"Aaron Leiby","url":"iphone-puzzle-league.googlecode.com"}
