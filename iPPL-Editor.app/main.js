@@ -277,8 +277,7 @@ saveView.addSubview(nameField);
 //!!ARL: Autogenerate an icon by take a screenshot of the bounds of the board.
 
 var keyboard = new UIKeyboard("");
-keyboard.preferredKeyboardType = 0;
-keyboard.setDefaultReturnKeyType(3);
+keyboard.preferredKeyboardType = 3;
 keyboard.showPreferredLayout();
 saveView.addSubview(keyboard);
 
