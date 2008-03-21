@@ -495,3 +495,17 @@ navBar.onButtonClicked = function(bar,button)
   }
 }
 
+/*!!ARL: SpringBoard caches default.png, so we can't update it to show the last loaded board.
+this.onUnload = function()
+{
+  try
+  {
+    var defaultPNG = Images.createApplicationDefaultPNG();
+    defaultPNG.saveToFile(Bundle.bundlePath+"/Default.png");
+  }
+  catch(e)
+  {
+    alert(e);
+  }
+}
+*/
