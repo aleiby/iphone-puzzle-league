@@ -47,6 +47,16 @@ function assert(result,msg)
     throw new Error(msg);
 }
 
+function assertMatched(row,col)
+{
+  assert(iPPLcore.IsBreaking(row,col),"Block ["+row+","+col+"] did not form a proper match.");
+}
+
+function assertUnmatched(row,col)
+{
+  assert(!iPPLcore.IsBreaking(row,col),"Block ["+row+","+col+"] should not have matched yet.");
+}
+
 var Tests = {
 
   // Test two blocks falling on two blocks to form a vertical four block chain.
@@ -92,7 +102,124 @@ var Tests = {
     assert(iPPLcore.IsBreaking(9,3),"Block [9,3] did not form a proper match.");
     assert(iPPLcore.IsBreaking(10,3),"Block [10,3] did not form a proper match.");
     assert(iPPLcore.IsBreaking(11,3),"Block [11,3] did not form a proper match.");
-  }
+  },
+  
+  SimpleMatchThree:function()
+  {
+    LoadBoard("SimpleMatchThree");
+
+    iPPLcore.MoveLeft(10,1);
+    assertUnmatched(9,0);
+    assertUnmatched(10,0);
+    assertUnmatched(11,0);
+    
+    iPPLcore.Update();
+    assertMatched(9,0);
+    assertMatched(10,0);
+    assertMatched(11,0);
+  },
+  
+  SimpleMatchFour:function()
+  {
+    LoadBoard("SimpleMatchFour");
+
+    iPPLcore.MoveLeft(10,1);
+    assertUnmatched(8,0);
+    assertUnmatched(9,0);
+    assertUnmatched(10,0);
+    assertUnmatched(11,0);
+    
+    iPPLcore.Update();
+    assertMatched(8,0);
+    assertMatched(9,0);
+    assertMatched(10,0);
+    assertMatched(11,0);
+  },
+  
+  SimpleMatchFive:function()
+  {
+    LoadBoard("SimpleMatchFive");
+
+    iPPLcore.MoveLeft(9,1);
+    assertUnmatched(7,0);
+    assertUnmatched(8,0);
+    assertUnmatched(9,0);
+    assertUnmatched(10,0);
+    assertUnmatched(11,0);
+    
+    iPPLcore.Update();
+    assertMatched(7,0);
+    assertMatched(8,0);
+    assertMatched(9,0);
+    assertMatched(10,0);
+    assertMatched(11,0);
+  },
+  
+  SimpleMatchTen:function()
+  {
+    LoadBoard("SimpleMatchTen");
+
+    iPPLcore.MoveLeft(9,1);
+
+    assertUnmatched(7,0);
+    assertUnmatched(8,0);
+    assertUnmatched(9,0);
+    assertUnmatched(10,0);
+    assertUnmatched(11,0);
+     
+    assertUnmatched(7,1);
+    assertUnmatched(8,1);
+    assertUnmatched(9,1);
+    assertUnmatched(10,1);
+    assertUnmatched(11,1);
+ 
+    iPPLcore.Update();
+ 
+    assertMatched(7,0);
+    assertMatched(8,0);
+    assertMatched(9,0);
+    assertMatched(10,0);
+    assertMatched(11,0);
+
+    assertMatched(7,1);
+    assertMatched(8,1);
+    assertMatched(9,1);
+    assertMatched(10,1);
+    assertMatched(11,1);
+  },
+
+  RobertsManeuver:function()
+  {
+    LoadBoard("RobertsManeuver");
+
+    iPPLcore.MoveRight(10,1);
+    iPPLcore.Update();
+
+    assertMatched(9,2);
+    assertMatched(10,2);
+    assertMatched(11,2);
+
+    while (iPPLcore.IsBreaking(10,2))
+    {
+      var moved = iPPLcore.MoveRight(10,1);
+      assert(!moved,"Should not be able to move block [10,1] until finished matching.");
+      iPPLcore.Update();
+    }
+    
+    var moved = iPPLcore.MoveRight(10,1);
+    assert(moved,"Failed to move block [10,1] after matching completed.");
+    
+    iPPLcore.Update();
+    assert(iPPLcore.GetBlockType(10,1)==blocks.red,"Middle red block failed to fall into place.");
+    assert(!iPPLcore.IsBreaking(10,1),"Middle red block matched prematurely.");
+    assert(iPPLcore.GetBlockType(11,2)==blocks.green,"Pulled block failed to fall into place.");
+    
+    iPPLcore.Update();
+    assert(iPPLcore.GetBlockType(10,2)==blocks.red,"Right red block failed to fall into place.");
+    assertMatched(10,0);
+    assertMatched(10,1);
+    assertMatched(10,2);
+  },
   
 };
 
