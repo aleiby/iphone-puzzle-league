@@ -100,7 +100,7 @@ void PPL_Update(void)
 		}
 
 	// update falling blocks (by raising empty blocks to the top).
-	for (int row = BOARD_ROWS-3; row >= 0; --row) // start at second from the bottom not counting the last locked row
+	for (int row = BOARD_ROWS-2; row >= 0; --row) // start at second from the bottom row
 		for (int col = 0; col < BOARD_COLS; ++col)
 		{
 			int* block = &(blocks[row][col]);
