@@ -57,6 +57,41 @@ function assertUnmatched(row,col)
   assert(!iPPLcore.IsBreaking(row,col),"Block ["+row+","+col+"] should not have matched yet.");
 }
 
+function assertFalling(row,col)
+{
+  assert(iPPLcore.IsFalling(row,col),"Block ["+row+","+col+"] should be falling.");
+}
+
+function assertNotFalling(row,col)
+{
+  assert(!iPPLcore.IsFalling(row,col),"Block ["+row+","+col+"] should not be falling.");
+}
+
+function assertType(type,row,col)
+{
+  assert(iPPLcore.GetBlockType(row,col)==blocks[type],"Expected "+type+" block in slot ["+row+","+col+"].");
+}
+
+Reasons = {
+  IsBreaking : "did not form a proper match.",
+  IsFalling : "should be falling.",
+};
+
+function assertState(state,row,col)
+{
+  assert(iPPLcore[state](row,col),"Block ["+row+","+col+"] "+Reasons[state]);
+}
+
+NotReasons = {
+  IsBreaking : "should not have matched yet.",
+  IsFalling : "should not be falling.",
+};
+
+function assertNotState(state,row,col)
+{
+  assert(!iPPLcore[state](row,col),"Block ["+row+","+col+"] "+Reasons[state]);
+}
+
 var Tests = {
 
   // Test two blocks falling on two blocks to form a vertical four block chain.
@@ -221,6 +256,204 @@ var Tests = {
     assertMatched(10,2);
   },
   
+  HorizontalMatchFall:function()
+  {
+    LoadBoard("HorizontalMatchFall");
+    
+    var moved = iPPLcore.MoveRight(11,2);
+    assert(moved,"Failed to move key block!");
+    
+    iPPLcore.Update();
+    
+    // Make sure the whole bottom row matched.
+    for (var col=0; col<BOARD_COLS; col++)
+      assertMatched(11,col);
+    
+    // Wait for it to finish matching.
+    while (iPPLcore.IsBreaking(11,0))
+    {
+      iPPLcore.Update();
+    }
+    
+    // The blocks should hang in the air for a frame.
+    for (var col=0; col<BOARD_COLS; col++)
+    {
+      assertNotFalling(9,col);
+      assertNotFalling(10,col);
+    }
+    
+    assert(false,"Remaining code needs testing.");
+    
+    iPPLcore.Update();
+    
+    // Verify all blocks moved at once.
+    for (var col=0; col<BOARD_COLS; col++)
+    {
+      if (col % 2)
+      {
+        assertType("yellow",10,col);
+        assertType("green",11,col);
+      }
+      else
+      {
+        assertType("green",10,col);
+        assertType("yellow",11,col);
+      }
+      
+      assertType("empty",9,col);
+      assertFalling(10,col);
+      assertFalling(11,col);
+    }    
+  },
+  
+  VerticalMatchFall:function()
+  {
+    LoadBoard("VerticalMatchFall");
+    
+    //!!ARL: Test that blocks fall one row at a time (as a single unit).
+    //!!ARL: Comments like the above should be part of the test metadata.
+    
+    var moved = iPPLcore.MoveRight(10,0);
+    assert(moved,"Failed to move key block!");
+    
+    iPPLcore.Update();
+    
+    assertMatched(9,0);
+    assertMatched(10,0);
+    assertMatched(11,0);
+
+    assertMatched(9,1);
+    assertMatched(10,1);
+    assertMatched(11,1);
+    
+    // Wait to finish breaking.
+    while (iPPLcore.IsBreaking(10,0))
+    {
+      iPPLcore.Update();
+    }
+    
+    // Let hang for a frame.
+    assertNotFalling(7,0);
+    assertNotFalling(7,1);
+
+    assertNotFalling(8,0);
+    assertNotFalling(8,1);
+    
+    assert(false,"Haven't tested beyond this point.");
+    
+    iPPLcore.Update();
+    
+    assertType("empty",7,0);
+    assertType("empty",7,1);
+    
+    assertType("yellow",8,0);
+    assertType("green",8,1);
+
+    assertType("green",9,0);
+    assertType("yellow",9,1);
+
+    assertType("empty",10,0);
+    assertType("empty",10,1);
+
+    assertFalling(8,0);
+    assertFalling(8,0);
+    assertFalling(9,1);
+    assertFalling(9,1);
+
+    iPPLcore.Update();
+    
+    assertType("empty",8,0);
+    assertType("empty",8,1);
+    
+    assertType("yellow",9,0);
+    assertType("green",9,1);
+
+    assertType("green",10,0);
+    assertType("yellow",10,1);
+
+    assertType("empty",11,0);
+    assertType("empty",11,1);
+
+    assertFalling(9,0);
+    assertFalling(9,0);
+    assertFalling(10,1);
+    assertFalling(10,1);
+
+    iPPLcore.Update();
+    
+    assertType("empty",9,0);
+    assertType("empty",9,1);
+    
+    assertType("yellow",10,0);
+    assertType("green",10,1);
+
+    assertType("green",11,0);
+    assertType("yellow",11,1);
+
+    // Still falling this frame (since they moved from the last frame).
+    assertFalling(10,0);
+    assertFalling(10,0);
+    assertFalling(11,1);
+    assertFalling(11,1);
+
+    iPPLcore.Update();
+
+    assertType("yellow",10,0);
+    assertType("green",10,1);
+
+    assertType("green",11,0);
+    assertType("yellow",11,1);
+
+    // Done falling now.
+    assertNotFalling(10,0);
+    assertNotFalling(10,0);
+    assertNotFalling(11,1);
+    assertNotFalling(11,1);
+  },
+  
+  //!!ARL: Add variations of too soon and too late and make sure they fail.
+  ShoveItIn:function()
+  {
+    LoadBoard("ShoveItIn");
+    
+    var moved = iPPLcore.MoveLeft(10,2);
+    assert(moved,"Failed to move key block!");
+    
+    iPPLcore.Update();
+    
+    assertMatched(8,1);
+    assertMatched(9,1);
+    assertMatched(10,1);
+    assertMatched(11,1);
+    
+    while (iPPLcore.IsBreaking(10,1))
+    {
+      iPPLcore.Update();
+    }
+    
+    assertType("red",7,1);
+
+    iPPLcore.Update();
+    assertType("red",8,1);
+
+    iPPLcore.Update();
+    assertType("red",9,1);
+    
+    assertUnmatched(9,0);
+    assertUnmatched(9,1);
+    assertUnmatched(9,2);
+    
+    moved = iPPLcore.MoveRight(10,0);
+    assert(moved,"Failed to move secondary block!");
+
+    iPPLcore.Update();
+        
+    assertMatched(9,0);
+    assertMatched(9,1);
+    assertMatched(9,2);
+    
+    //!!ARL: Also need to check for successful combo.
+  },
 };
 
 //!!ARL: Probably should require 'Test' prefix so we can separately support Setup/Teardown (fixtures).
