@@ -1,5 +1,6 @@
 #include "Core.h"
 #include "stdio.h"
+#include <string.h>
 #include <sys/time.h>
 
 int prev_rand = 0;
@@ -31,6 +32,63 @@ int randRange(int a, int b)
 
 int blocks[BOARD_ROWS][BOARD_COLS];
 int ticks = 0;
+
+// Need to be able to support multiple board instances.  (Maybe, see networking remarks below.)
+// Board memory is finite.
+// Keep track of current frame (write-only?).
+// Keep track of previous frame (read-only).
+// Need ability to flush when full.
+// Need ability to lock frames.
+// When flushing, must copy locked frames into clean buffer and update references.
+// Keep track of copied frames so they don't get serialized twice.
+// Will need ability to network (both to and from) - might only need latest state for rendering, not full history.
+// Use RLE and XOR to serialize history?
+// Ability to scrub backwards?
+
+struct Board
+{
+	Board(int rows, int cols, int frames)
+	: rows(rows)
+	, cols(cols)
+	, span(rows * cols)
+	{
+		//assert(frames > 1, "Cannot support both a previous and current board without two or more frames of history!");
+		
+		buffer_size = (span * frames);
+		buffer = new int[buffer_size];
+		
+		current = buffer;
+		memset(current, eBlockType_Empty, span * sizeof(int));
+		Advance();
+	}
+	
+	void Advance()
+	{
+		previous = current;
+		current += span;
+		
+		if (current >= (buffer + buffer_size))
+			Flush();
+	}
+	
+	void Flush()
+	{
+		//!!ARL: Deal with locked frames.
+		
+		//!!ARL: Assert no overlap - use memmove instead?
+		current = buffer;
+		memcpy(current, previous, span * sizeof(int));
+		Advance();
+	}
+	
+	int* buffer;
+	int* current;
+	int* previous;
+	int rows;
+	int cols;
+	int span; // blocks per frame
+	int buffer_size;
+};
 
 void PPL_Init()
 {
@@ -85,6 +143,21 @@ int DecayBlock(int* block, int mask, int inc)
 
 void PPL_Update(void)
 {
+	//!!ARL: Need to change how matching / breaking is done.  Store off a set, and work our way through it.
+	// Kill the blocks one at a time (left->right, top->bottom).  Use two separate flags.  Start as matched,
+	// change to cleared.  Don't actually clear the 'cleared' flag until the entire set has been matched.
+	// Allow multiple sets at once, but keep independent.
+	// After clear flag is removed, blocks must hang for a frame to give interface code a chance to move a block
+	// before they start falling.
+	
+	//!!ARL: Instead of storing separately, keep track of the board that the combo was made on, and use it as
+	// a sort of template for working through and clearing the blocks on the "current" board.
+	
+	//!!ARL: Falling happens over a single frame.  The visualization is always a frame behind, so we need to
+	// move the block, and then mark it on the same frame so the visualization can animate it.  (Unless we
+	// start using callbacks instead.)  The next frame when we check to see if a given block needs to fall or
+	// not, then we can simple clear the flag in the "or not" case.
+	
 	// decay matched/falling blocks.
 	for (int row = 0; row < BOARD_ROWS; row++)
 		for (int col = 0; col < BOARD_COLS; col++)
