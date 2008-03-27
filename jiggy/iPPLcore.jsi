@@ -2,7 +2,6 @@
 class iPPLcore
 {
 	void Init();
-	void NewBoard();
 	void Update();
 	bool Feed();
 	void SetBlockType(int row, int col, int type);
