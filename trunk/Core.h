@@ -36,7 +36,6 @@ enum EBlockFlag
 #define TICKS_PER_MATCH		8
 
 void	PPL_Init			(void);
-void	PPL_NewBoard		(void);
 void	PPL_Update			(void);
 int		PPL_Feed			(void);
 void	PPL_SetBlockType	(int row, int col, int type);

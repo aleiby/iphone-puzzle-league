@@ -11,11 +11,6 @@
 	PPL_Init();
 }
 
--(void)NewBoard
-{
-	PPL_NewBoard();
-}
-
 -(void)Update
 {
 	PPL_Update();

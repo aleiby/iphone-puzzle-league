@@ -30,9 +30,6 @@ int randRange(int a, int b)
 	return a + (abs(quickrand()) % (b - a));
 }
 
-int blocks[BOARD_ROWS][BOARD_COLS];
-int ticks = 0;
-
 // Need to be able to support multiple board instances.  (Maybe, see networking remarks below.)
 // Board memory is finite.
 // Keep track of current frame (write-only?).
@@ -47,7 +44,7 @@ int ticks = 0;
 
 struct Board
 {
-	Board(int rows, int cols, int frames)
+	Board(int rows, int cols, int frames=2)
 	: rows(rows)
 	, cols(cols)
 	, span(rows * cols)
@@ -66,6 +63,8 @@ struct Board
 	{
 		previous = current;
 		current += span;
+		
+		//!!ARL: Memcpy prev to cur, or let Update take care of copying all values over?
 		
 		if (current >= (buffer + buffer_size))
 			Flush();
@@ -90,55 +89,228 @@ struct Board
 	int buffer_size;
 };
 
+struct EachBlock
+{
+	EachBlock(Board* board, int skip=0) // optionally start at row x
+	{
+		read = board->previous + (skip * BOARD_COLS);
+		write = board->current + (skip * BOARD_COLS);
+		end = write + board->span;
+	}
+	
+	inline operator bool() const
+	{
+		return (write < end);
+	}
+	
+	inline EachBlock& operator++()
+	{
+		++read;
+		++write;
+		return *this;
+	}
+	
+	inline int operator*() const
+	{
+		return (*read);
+	}
+	
+	inline int GetType() const
+	{
+		return (*read) & eBlockFlag_TypeMask;
+	}
+	
+	inline void SetType(int type)
+	{
+		(*write) = type;
+	}
+	
+	inline void ClearFlag(int flag)
+	{
+		(*write) = (*read) & ~flag;
+	}
+	
+	inline int Decay(int mask, const int offset)
+	{
+		int count = (*read) & mask;
+		if (count)
+		{
+			count -= (1 << offset); // push bit-shift up a level to ensure folding? (this whole function will probably go away shortly anyway)
+			if (count == 0)
+				return 1;
+			
+			(*write) = count | ((*read) & ~mask);
+		}
+		return 0;
+	}
+	
+	const int* read;
+	int* write;
+
+	int const* end; // of write
+};
+
+struct EachFreeBlock // skips empty and locked blocks
+{
+	EachFreeBlock(Board* board)
+	: board(board)
+	{
+		i = board->previous - 1;
+		end = board->previous + board->span;
+		++(*this); // scan to first valid block
+	}
+	
+	inline operator bool() const
+	{
+		return (i < end);
+	}
+	
+	inline EachFreeBlock& operator++()
+	{
+		for (++i; (*this); ++i)
+		{
+			const int block = (*i);
+			
+			if (block == eBlockType_Empty)
+				continue;
+			if (block & ~eBlockFlag_TypeMask)
+				continue;
+			
+			break;
+		}
+		const int offset = i - board->previous;
+		row = offset / board->span;
+		col = offset % BOARD_COLS;
+		return *this;
+	}
+
+	inline int GetType() const
+	{
+		return (*i); // no need to mask since we skip non-masked in the increment
+	}
+	
+	inline void SetType(int type)
+	{
+		board->current[row * BOARD_COLS + col] = type;
+	}
+	
+	const int* i;
+	int const* end;
+
+	int row, col;
+	Board* board;
+};
+
+struct EachColConst // read-only
+{
+	EachColConst(Board* board, int row, int min=0, int max=BOARD_COLS)
+	: i(&board->previous[row * BOARD_COLS + ::max(min, 0)])
+	, end(&board->previous[row * BOARD_COLS + ::min(max, BOARD_COLS)])
+	{}
+	
+	inline operator bool() const
+	{
+		return (i < end);
+	}
+	
+	inline EachColConst& operator++()
+	{
+		++i;
+		return *this;
+	}
+	
+	inline int operator*() const
+	{
+		return (*i);
+	}
+
+	const int* i;
+	const int* const end;
+};
+
+struct EachRowConst // read-only
+{
+	EachRowConst(Board* board, int col, int min=0, int max=BOARD_ROWS)
+	: i(&board->previous[::max(min, 0) * BOARD_COLS + col])
+	, end(&board->previous[::min(max, BOARD_ROWS) * BOARD_COLS + col])
+	{}
+	
+	inline operator bool() const
+	{
+		return (i < end);
+	}
+	
+	inline EachRowConst& operator++()
+	{
+		i += BOARD_COLS;
+		return *this;
+	}
+	
+	inline int operator*() const
+	{
+		return (*i);
+	}
+	
+	const int* i;
+	const int* const end;
+};
+
+struct EachBlockR // for reverse
+{
+	EachBlockR(Board* board, int skip=0) // optionally skip x bottom rows
+	{
+		const int last = (board->span - 1) - (skip * BOARD_COLS);
+		read = &board->previous[last];
+		write = &board->current[last];
+		end = board->current;
+	}
+	
+	inline operator bool() const
+	{
+		return (write >= end);
+	}
+	
+	inline EachBlockR& operator--()
+	{
+		--read;
+		--write;
+		return *this;
+	}
+	
+	inline int operator*() const
+	{
+		return (*read);
+	}
+	
+	inline int GetType() const
+	{
+		return (*read) & eBlockFlag_TypeMask;
+	}
+	
+	inline void SetType(int type)
+	{
+		(*write) = type;
+	}
+		
+	const int* read;
+	int* write;
+	
+	int const* end; // of write
+};
+
+static Board* board = NULL;
+
 void PPL_Init()
 {
+	//!!ARL: Pass in seed?
 	struct timeval t;
 	gettimeofday(&t,0);
 	prev_rand = t.tv_sec;
-
-	// Clear out entire board.
-	for (int row = 0; row < BOARD_ROWS; row++)
-		for (int col = 0; col < BOARD_COLS; col++)
-			blocks[row][col] = eBlockType_Empty;
-}
-
-//!!ARL: Move this logic into javascript?
-void PPL_NewBoard()
-{
-	// Clear first half of board.
-	int filledRows = BOARD_ROWS / 2;
-	for (int row = 0; row < filledRows; row++)
-		for (int col = 0; col < BOARD_COLS; col++)
-			blocks[row][col] = eBlockType_Empty;
-
-	// Fill in the rest with normal blocks (not special).
-	for (int row = filledRows; row < BOARD_ROWS; row++)
-		for (int col = 0; col < BOARD_COLS; col++)
-			blocks[row][col] = randRange(eBlockType_Empty, eBlockType_Special);
-
-	// Feed one line so we have a locked row on the bottom to start with.
-	PPL_Feed();
-
-	// Update until the blocks settle.
-	TRY_AGAIN:	PPL_Update();
-	for (int row = 0; row < BOARD_ROWS-1; row++)
-		for (int col = 0; col < BOARD_COLS; col++)
-			if (blocks[row][col] & ~eBlockFlag_TypeMask)
-				goto TRY_AGAIN;
-}
-
-int DecayBlock(int* block, int mask, int inc)
-{
-	int count = ((*block) & mask);
-	if (count)
-	{
-		count -= inc;
-		if (count == 0)
-			return 1;
-
-		(*block) = count | ((*block) & ~mask);
-	}
-	return 0;
+	
+	if (board)
+		delete board;
+	
+	board = new Board(BOARD_ROWS,BOARD_COLS);
 }
 
 void PPL_Update(void)
@@ -158,121 +330,98 @@ void PPL_Update(void)
 	// start using callbacks instead.)  The next frame when we check to see if a given block needs to fall or
 	// not, then we can simple clear the flag in the "or not" case.
 	
+	board->Advance();
+	
 	// decay matched/falling blocks.
-	for (int row = 0; row < BOARD_ROWS; row++)
-		for (int col = 0; col < BOARD_COLS; col++)
-		{
-			int* block = &(blocks[row][col]);
-			int type = (*block) & eBlockFlag_TypeMask;
-			if (type == eBlockType_Empty)
-				continue;
-			if (DecayBlock(block, eBlockFlag_Matching, (1 << MATCHING_OFFSET)))
-				(*block) = eBlockType_Empty;
-			else if (DecayBlock(block, eBlockFlag_Falling, (1 << FALLING_OFFSET)))
-				(*block) = type; // clear the flag, done falling.
-		}
-
+	for (EachBlock block(board); block; ++block)
+	{
+		int type = block.GetType();
+		if (type == eBlockType_Empty)
+			continue;
+		if (block.Decay(eBlockFlag_Matching, MATCHING_OFFSET))
+			block.SetType(eBlockType_Empty);
+		else if (block.Decay(eBlockFlag_Falling, FALLING_OFFSET))
+			block.SetType(type); // clear the flag, done falling.
+	}
+	
 	// update falling blocks (by raising empty blocks to the top).
-	for (int row = BOARD_ROWS-2; row >= 0; --row) // start at second from the bottom row
-		for (int col = 0; col < BOARD_COLS; ++col)
+	for (EachBlockR block(board,1), below(board); block; --block, --below)
+	{
+		//!!ARL: Move to IsEmpty and IsLocked?  (EachFreeBlockR?)
+		if ((*block) == eBlockType_Empty)
+			continue;
+		if ((*block) & ~eBlockFlag_TypeMask)
+			continue;
+
+		if ((*below) == eBlockType_Empty)
 		{
-			int* block = &(blocks[row][col]);
-			if ((*block) == eBlockType_Empty)
-				continue;
-			if ((*block) & ~eBlockFlag_TypeMask)
-				continue;
-
-			int* other = &(blocks[row+1][col]);
-			if ((*other) == eBlockType_Empty)
-			{
-				(*other) = (*block) | eBlockFlag_Falling;
-				(*block) = eBlockType_Empty;
-			}
+			below.SetType((*block) | eBlockFlag_Falling);
+			block.SetType(eBlockType_Empty);
 		}
-
+	}
+	
 	// check for matches.
-	for (int row = 0; row < BOARD_ROWS; row++)
-		for (int col = 0; col < BOARD_COLS; col++)
+	int matches;
+	for (EachFreeBlock block(board); block; ++block)
+	{
+		int type = block.GetType();
+		
+		matches = 0;
+		for (EachColConst i(board,block.row,block.col-2,block.col+3); i; ++i)
 		{
-			int type = blocks[row][col];
-			if (type == eBlockType_Empty)
-				continue;
-			if (type & ~eBlockFlag_TypeMask)
-				continue;
-			type = (type & eBlockFlag_TypeMask);
-
-			//!! read from old, write to new instead.
-			int type_matched = (type | eBlockFlag_Matching);
-
-			// horizontal...
+			if ((*i) == type)
 			{
-				int low = max(col-2, 0);
-				int high = min(col+3, BOARD_COLS);
-				int matches = 0;
-				for (int i = low; i < high; i++)
+				if (++matches == 3)
 				{
-					int block = blocks[row][i];
-					if (block == type || block == type_matched)
-					{
-						if (++matches == 3)
-						{
-							blocks[row][col] |= eBlockFlag_Matching;
-							goto NEXT_BLOCK;
-						}
-					}
-					else matches = 0;
+					block.SetType(type | eBlockFlag_Matching);
+					goto NEXT_BLOCK;
 				}
 			}
-
-			// vertical...
-			{
-				int low = max(row-2, 0);
-				int high = min(row+3, BOARD_ROWS);
-				int matches = 0;
-				for (int i = low; i < high; i++)
-				{
-					int block = blocks[i][col];
-					if (block == type || block == type_matched)
-					{
-						if (++matches == 3)
-						{
-							blocks[row][col] |= eBlockFlag_Matching;
-							goto NEXT_BLOCK;
-						}
-					}
-					else matches = 0;
-				}
-			}
-
-			NEXT_BLOCK:;
+			else matches = 0;
 		}
 
-	++ticks;
+		matches = 0;
+		for (EachRowConst i(board,block.col,block.row-2,block.row+3); i; ++i)
+		{
+			if ((*i) == type)
+			{
+				if (++matches == 3)
+				{
+					block.SetType(type | eBlockFlag_Matching);
+					goto NEXT_BLOCK;
+				}
+			}
+			else matches = 0;
+		}
+
+		NEXT_BLOCK:;
+	}
 }
 
 int PPL_Feed(void)
 {
 	// Check for GameOver state (blocks about to be pushed off the top row).
-	for (int col = 0; col < BOARD_COLS; col++)
-		if (blocks[0][col] != eBlockType_Empty)
+	for (EachColConst block(board,0); block; ++block)
+		if ((*block) != eBlockType_Empty)
 			return 0;
 
 	// Unlock old bottom row.
-	for (int col = 0; col < BOARD_COLS; col++)
-		blocks[BOARD_ROWS-1][col] &= ~eBlockFlag_Locked;
+	for (EachBlock block(board,BOARD_ROWS-1); block; ++block)
+		block.ClearFlag(eBlockFlag_Locked);
 
 	// Move rows up one.
-	for (int row = 0; row < BOARD_ROWS-1; row++)
-		for (int col = 0; col < BOARD_COLS; col++)
-			blocks[row][col] = blocks[row+1][col];
+	for (EachBlock block(board), below(board,1); below; ++block, ++below)
+		block.SetType(*below);
 
 	// Fill in new bottom row and lock it.  (!!ARL: Make sure there are no matches.)
-	for (int col = 0; col < BOARD_COLS; col++)
-		blocks[BOARD_ROWS-1][col] = randRange(eBlockType_Empty+1, eBlockType_Max) | eBlockFlag_Locked;
+	for (EachBlock block(board,BOARD_ROWS-1); block; ++block)
+		block.SetType(randRange(eBlockType_Empty+1, eBlockType_Max) | eBlockFlag_Locked);
 
 	// Success!
 	return 1;
 }
+
+//!!ARL: Push these accessors to Board members?
 
 void PPL_SetBlockType(int row, int col, int type)
 {
@@ -283,7 +432,7 @@ void PPL_SetBlockType(int row, int col, int type)
 	if (type < 0 || type >= eBlockType_Max)
 		return;
 
-	blocks[row][col] = type;
+	board->current[row * BOARD_COLS + col] = type;
 }
 
 int PPL_GetBlockType(int row, int col)
@@ -293,24 +442,24 @@ int PPL_GetBlockType(int row, int col)
 	if (col < 0 || col >= BOARD_COLS)
 		return eBlockType_Invalid;
 
-	return (blocks[row][col] & eBlockFlag_TypeMask);
+	return (board->current[row * BOARD_COLS + col] & eBlockFlag_TypeMask);
 }
 
 int PPL_IsLocked(int row, int col)
 {
-	int block = blocks[row][col];
+	int block = board->current[row * BOARD_COLS + col];
 	return (block & ~eBlockFlag_TypeMask);
 }
 
 int PPL_IsFalling(int row, int col)
 {
-	int block = blocks[row][col];
+	int block = board->current[row * BOARD_COLS + col];
 	return (block & eBlockFlag_Falling);
 }
 
 int PPL_IsBreaking(int row, int col)
 {
-	int block = blocks[row][col];
+	int block = board->current[row * BOARD_COLS + col];
 	return (block & eBlockFlag_Matching);
 }
 
@@ -319,16 +468,16 @@ int PPL_MoveRight(int row, int col)
 	if (col == BOARD_COLS-1)
 		return 0;
 
-	int block = blocks[row][col];
+	int block = board->current[row * BOARD_COLS + col];
 	if (block & ~eBlockFlag_TypeMask)
 		return 0;
 
-	int other = blocks[row][col+1];
+	int other = board->current[row * BOARD_COLS + col+1];
 	if (other & ~eBlockFlag_TypeMask)
 		return 0;
 
-	blocks[row][col] = other;
-	blocks[row][col+1] = block;
+	board->previous[row * BOARD_COLS + col] = other;
+	board->previous[row * BOARD_COLS + col+1] = block;
 	return 1;
 }
 
@@ -337,15 +486,15 @@ int PPL_MoveLeft(int row, int col)
 	if (col == 0)
 		return 0;
 
-	int block = blocks[row][col];
+	int block = board->current[row * BOARD_COLS + col];
 	if (block & ~eBlockFlag_TypeMask)
 		return 0;
 
-	int other = blocks[row][col-1];
+	int other = board->current[row * BOARD_COLS + col-1];
 	if (other & ~eBlockFlag_TypeMask)
 		return 0;
 
-	blocks[row][col] = other;
-	blocks[row][col-1] = block;
+	board->previous[row * BOARD_COLS + col] = other;
+	board->previous[row * BOARD_COLS + col-1] = block;
 	return 1;
 }
