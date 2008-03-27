@@ -20,9 +20,6 @@ window.backgroundColor = [0,0,0,0.5];
 var mainView = new UIView();
 window.setContentView(mainView);
 
-iPPLcore.Init();  //!!ARL: Pass in num cols, rows, types, etc.
-iPPLcore.NewBoard();
-
 // Some constants.
 var BLOCK_SIZE = 34;
 var BOARD_COLS = 6;
@@ -34,6 +31,41 @@ Array.prototype.getY      = function() { return this[1]; }
 Array.prototype.getWidth  = function() { return this[2]; }
 Array.prototype.getHeight = function() { return this[3]; }
 Array.prototype.getOrigin = function() { return this.split(0,2); }
+
+iPPLcore.Init();  //!!ARL: Pass in num cols, rows, types, etc.
+
+function NewBoard()
+{
+  //!!ARL: Expose BoardIterator (EachBlock) to Javascript.
+  
+  // Clear first half of board.
+  var filledRows = Math.floor(BOARD_ROWS / 2);
+  for (var row=0; row<filledRows; row++)
+    for (var col=0; col<BOARD_COLS; col++)
+      iPPLcore.SetBlockType(row,col,0); // empty
+
+  // Fill in the rest with normal blocks (not special).      
+  for (var row=filledRows; row<BOARD_ROWS; row++)
+    for (var col=0; col<BOARD_COLS; col++)
+      iPPLcore.SetBlockType(Math.floor(Math.random()*5 + 1));
+  
+  // Update until the blocks settle.
+  function Settled()
+  {
+    for (var row=filledRows; row<BOARD_ROWS; row++)
+    {
+      for (var col=0; col<BOARD_COLS; col++)
+        if (iPPLcore.IsLocked(row,col))
+          return false;
+    }
+    return true;
+  }
+  do { iPPLcore.Update(); } while (!Settled());
+  
+  // Feed one line so we have a locked row on the bottom to start with.
+  iPPLcore.Feed();
+}
+NewBoard();
 
 // Create a frame for the board.
 var boardWidth = BLOCK_SIZE*BOARD_COLS;
